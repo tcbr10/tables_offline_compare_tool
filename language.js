@@ -1,0 +1,57 @@
+/* UI localization only: never translate imported cells, column names or exports. */
+(() => {
+'use strict';
+const translations={
+'Table & Phone Comparison':'השוואת טבלאות ומספרי טלפון',
+'Keep full rows. Compare two tables using one selected column in each.':'שמירה על שורות מלאות. השוואת שתי טבלאות לפי עמודה נבחרת בכל טבלה.',
+'Comparison settings':'הגדרות השוואה','Match as':'סוג התאמה','Phone — Israeli normalization':'טלפון — זיהוי פורמטים ישראליים','Text — ignore case':'טקסט — ללא הבחנה בין אותיות גדולות וקטנות','Text — case-sensitive':'טקסט — עם הבחנה בין אותיות גדולות וקטנות','Duplicate keys':'ערכים כפולים בעמודת ההשוואה','Keep first row':'שמירת השורה הראשונה','Keep last row':'שמירת השורה האחרונה','Keep all rows':'שמירת כל השורות','Swap A / B':'החלפת A ו־B','Operation':'פעולה','Shared-key rows':'שורות עם אותו ערך בשתי הטבלאות','Prefer A; fill empty cells from B':'העדפת A והשלמת תאים ריקים מתוך B','Prefer B; fill empty cells from A':'העדפת B והשלמת תאים ריקים מתוך A','Keep A row only':'שמירת השורה מ־A בלבד','Keep B row only':'שמירת השורה מ־B בלבד','Key output':'פורמט עמודת ההשוואה בפלט','Original value':'הערך המקורי','Normalized (+972…)':'פורמט אחיד (+972…)','Israeli local (0…)':'פורמט ישראלי מקומי (0…)','International digits (972…)':'ספרות בפורמט בינלאומי (972…)','Sort by key':'מיון לפי ערך ההשוואה','Add source column':'הוספת עמודת מקור','Result':'תוצאה','Download Excel':'הורדת Excel','Download CSV':'הורדת CSV','Copy table':'העתקת הטבלה','Filter any column…':'סינון בכל העמודות…','Filter results':'סינון תוצאות','Merge A + B':'מיזוג A ו־B','Remove B from A':'הסרת B מתוך A','Remove A from B':'הסרת A מתוך B','Matching rows':'שורות תואמות','Unmatched rows':'שורות ללא התאמה','Clean A':'ניקוי A','Clean B':'ניקוי B','Table A':'טבלה A','Table B':'טבלה B','Import table':'ייבוא טבלה','Clear':'ניקוי','Paste table A':'הדבקת טבלה A','Paste table B':'הדבקת טבלה B','Paste a complete table from Excel or a phone list…':'הדבקת טבלה מלאה מ־Excel או רשימת מספרי טלפון…','First row is a header':'השורה הראשונה מכילה כותרות','Compare by':'עמודת השוואה','Sheet':'גיליון','Preview: first 12 rows. Highlighted column is the comparison key.':'תצוגה מקדימה: 12 השורות הראשונות. העמודה המודגשת משמשת להשוואה.','No rows to show.':'אין שורות להצגה.','Show excluded rows (invalid or empty key)':'הצגת שורות שהוחרגו — ערך השוואה ריק או לא תקין','Preview: up to 500 rows. Export and copy include the entire result, regardless of the filter.':'תצוגה מקדימה: עד 500 שורות. הייצוא וההעתקה כוללים את כל התוצאה, ללא קשר לסינון.',
+'Phone mode: +972559280898, 0559280898 and 559280898 match. Supports spaces, dashes, parentheses and 00972. Other countries require +country code or 00country code. Invalid/empty keys are excluded. This checks format, not active numbers.':'במצב טלפון, ‎+972559280898, 0559280898 ו־559280898 מזוהים כאותו מספר. נתמכים רווחים, מקפים, סוגריים ו־00972. מספרים ממדינות אחרות דורשים קידומת בינלאומית עם + או 00. ערכים ריקים או לא תקינים מוחרגים. נבדק הפורמט בלבד, לא האם המספר פעיל.',
+'Text mode trims outer spaces; empty keys are excluded. No phone normalization.':'במצב טקסט מוסרים רווחים בתחילת הערך ובסופו. ערכים ריקים מוחרגים. לא מתבצעת המרת מספרי טלפון.',
+'Subtraction keeps complete source rows whose selected key is absent from the other table. Only the selected column determines a match.':'ההסרה משאירה שורות מקור מלאות כאשר הערך בעמודת ההשוואה אינו נמצא בטבלה השנייה. רק העמודה שנבחרה קובעת התאמה.',
+'Columns with the same header name align (ignoring case and outer spaces). The two selected key columns combine, even if named differently. Different non-key column names remain separate. Shared keys use the preferred row and optional empty-cell filling.':'עמודות בעלות אותה כותרת מאוחדות, ללא הבחנה בין אותיות גדולות וקטנות ורווחים חיצוניים. שתי עמודות ההשוואה מאוחדות גם אם שמותיהן שונים. יתר העמודות בעלות שמות שונים נשארות נפרדות. עבור ערך משותף נבחרת השורה המועדפת, עם אפשרות להשלמת תאים ריקים.',
+'Keep-all preserves source duplicates. Shared keys retain all rows from the preferred table; filling uses the first matching row from the other table, not a many-to-many join.':'שמירת כל השורות משמרת כפילויות במקור. עבור ערך משותף נשמרות כל השורות מהטבלה המועדפת; ההשלמה משתמשת בשורה התואמת הראשונה מהטבלה השנייה, ללא צירוף כל הצירופים האפשריים.',
+'Your tables are processed locally in your browser and are not uploaded. Paste, CSV and TSV work offline. Excel import/export downloads SheetJS from its CDN on first use and requires internet. The selected worksheet\'s data is retained, not styling, formulas or other sheets. Excel export stores values as text; CSV does not preserve column types and spreadsheet apps may interpret formulas. Already-rounded identifiers cannot be restored.':'הטבלאות מעובדות מקומית בדפדפן ואינן מועלות לשרת. הדבקה וקובצי CSV ו־TSV פועלים ללא אינטרנט. ייבוא וייצוא Excel דורשים הורדת ספריית SheetJS בשימוש הראשון. נשמרים נתוני הגיליון שנבחר, ללא עיצוב, נוסחאות או גיליונות נוספים. בייצוא Excel הערכים נשמרים כטקסט. CSV אינו שומר סוגי עמודות, ותוכנות גיליון עלולות לפרש נוסחאות. לא ניתן לשחזר ספרות שכבר אבדו עקב עיגול.',
+'Excel library could not load. Check internet access or use CSV.':'טעינת ספריית Excel נכשלה. בדקו את החיבור לאינטרנט או השתמשו ב־CSV.','No worksheets found.':'לא נמצאו גיליונות.','Preparing Excel…':'הכנת קובץ Excel…','Clipboard blocked. Download the table instead.':'הגישה ללוח ההעתקה נחסמה. ניתן להוריד את הטבלה במקום.'
+};
+function hebrew(source){
+ if(Object.prototype.hasOwnProperty.call(translations,source))return translations[source];
+ const extra=' Keep-all preserves source duplicates. Shared keys retain all rows from the preferred table; filling uses the first matching row from the other table, not a many-to-many join.';
+ if(source.endsWith(extra))return hebrew(source.slice(0,-extra.length))+' '+translations[extra.trim()];
+ if(/^Data row \d+: /.test(source))return source.replace(/^Data row (\d+): /gm,'שורת נתונים $1: ').replace(/\n… First 100 shown\.$/,'\n… מוצגות 100 השורות הראשונות.');
+ let m;
+ if((m=source.match(/^([\d,]+) rows · ([\d,]+) unique keys · (\d+) duplicates · (\d+) excluded keys$/)))return `${m[1]} שורות · ${m[2]} ערכי השוואה ייחודיים · ${m[3]} כפילויות · ${m[4]} ערכים שהוחרגו`;
+ if((m=source.match(/^([\d,]+) result rows · (\d+) columns · (\d+) differing non-empty A\/B cells$/)))return `${m[1]} שורות בתוצאה · ${m[2]} עמודות · ${m[3]} תאים לא ריקים עם ערכים שונים בין A ו־B`;
+ if((m=source.match(/^Showing 500 of ([\d,]+) matching rows$/)))return `מוצגות 500 מתוך ${m[1]} שורות התואמות לסינון`;
+ if((m=source.match(/^([\d,]+) matching rows$/)))return `${m[1]} שורות התואמות לסינון`;
+ if((m=source.match(/^Loading ([\s\S]+)…$/)))return 'טעינת '+m[1]+'…';
+ if((m=source.match(/^Loaded ([\s\S]+)\. Check the header and comparison column\.$/)))return 'נטען '+m[1]+'. בדקו את הכותרות ואת עמודת ההשוואה.';
+ if((m=source.match(/^Loaded ([\s\S]+)$/)))return 'נטען '+m[1];
+ if((m=source.match(/^Copied (\d+) full rows including headers\.$/)))return `הועתקו ${m[1]} שורות מלאות, כולל כותרות.`;
+ if((m=source.match(/^Exported (\d+) full rows; cell values are stored as text\.$/)))return `יוצאו ${m[1]} שורות מלאות; ערכי התאים נשמרו כטקסט.`;
+ if((m=source.match(/^Exported all (\d+) rows\. Prefer Excel export to preserve text types and avoid formula interpretation\.$/)))return `יוצאו כל ${m[1]} השורות. מומלץ לייצא ל־Excel כדי לשמר ערכים כטקסט ולמנוע פירוש כנוסחאות.`;
+ return source;
+}
+const originals=new WeakMap(),attrOriginals=new WeakMap(),previewOriginals=new WeakMap();
+let language='en',scheduled=false;
+try{if(localStorage.getItem('table-tool-language')==='he')language='he';}catch(e){}
+const bar=document.createElement('div');bar.id='language-control';bar.className='row';bar.style.justifyContent='flex-end';
+const label=document.createElement('label');label.textContent='Language / שפה ';
+const select=document.createElement('select');select.id='ui-language';select.setAttribute('aria-label','Language / שפה');
+for(const [value,text] of [['en','English'],['he','עברית']]){const o=document.createElement('option');o.value=value;o.textContent=text;select.append(o);}select.value=language;label.append(select);bar.append(label);document.querySelector('main').prepend(bar);
+const style=document.createElement('style');style.textContent='th,td{text-align:start}html[dir="rtl"] .ops button{text-align:right}#language-control{direction:ltr}td[dir="ltr"]{unicode-bidi:isolate}';document.head.append(style);
+function remember(store,node,current){const old=store.get(node);if(old&&current===old.shown)return old;const next={source:current,shown:current};store.set(node,next);return next;}
+function excluded(node){const p=node.parentElement;return !p||p.closest('#language-control,script,style')||p.closest('table')&&!p.closest('td.empty')||p.closest('select[id^="key-"],select[id^="sheet-"]');}
+function apply(){
+ observer.disconnect();scheduled=false;
+ document.documentElement.lang=language;document.documentElement.dir=language==='he'?'rtl':'ltr';document.title=language==='he'?translations['Table & Phone Comparison']:'Table & Phone Comparison';
+ const walker=document.createTreeWalker(document.querySelector('main'),NodeFilter.SHOW_TEXT);let node;
+ while((node=walker.nextNode())){if(excluded(node)||!node.nodeValue.trim())continue;const rec=remember(originals,node,node.nodeValue),trim=rec.source.trim();const translated=language==='he'?hebrew(trim):trim;rec.shown=rec.source.replace(trim,translated);if(node.nodeValue!==rec.shown)node.nodeValue=rec.shown;}
+ for(const input of document.querySelectorAll('main [placeholder],main [aria-label]')){if(input.closest('#language-control'))continue;let records=attrOriginals.get(input);if(!records){records={};attrOriginals.set(input,records);}for(const attr of ['placeholder','aria-label']){const current=input.getAttribute(attr);if(current===null)continue;let r=records[attr];if(!r||current!==r.shown)r=records[attr]={source:current,shown:current};r.shown=language==='he'?hebrew(r.source):r.source;if(current!==r.shown)input.setAttribute(attr,r.shown);}}
+ for(const cell of document.querySelectorAll('table td:not(.empty),table th')){const value=cell.textContent.trim(),dir=/^[+\d\s().-]+$/.test(value)?'ltr':'auto';if(cell.getAttribute('dir')!==dir)cell.setAttribute('dir',dir);}
+ for(const id of ['A','B']){const area=document.getElementById('paste-'+id);if(!area.readOnly)continue;const r=remember(previewOriginals,area,area.value);const m=r.source.match(/^Excel sheet: ([\s\S]+)\nUse the selectors below\. Clear this table to paste new data\.$/);if(m){r.shown=language==='he'?'גיליון Excel: '+m[1]+'\nהשתמשו בבחירת העמודות למטה. נקו את הטבלה כדי להדביק נתונים חדשים.':r.source;if(area.value!==r.shown)area.value=r.shown;}}
+ observer.observe(document.querySelector('main'),{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['placeholder','aria-label']});
+}
+const observer=new MutationObserver(()=>{if(!scheduled){scheduled=true;requestAnimationFrame(apply);}});
+select.addEventListener('change',()=>{language=select.value;try{localStorage.setItem('table-tool-language',language);}catch(e){}apply();});
+apply();
+})();
