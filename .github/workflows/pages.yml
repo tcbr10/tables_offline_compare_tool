@@ -22,8 +22,7 @@ jobs:
       - name: Prepare site
         run: |
           mkdir -p _site
-          cp language.js .nojekyll _site/
-          sed 's|</body>|<script src="./language.js"></script></body>|' index.html > _site/index.html
+          cp index.html language.js .nojekyll _site/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
