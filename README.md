@@ -24,7 +24,7 @@ The workflow deploys on subsequent pushes to `main`. Enabling Pages initially is
 - Prefer A/B rows, optionally filling empty cells from the other table.
 - Export full rows to Excel or CSV, or copy a tab-separated table with headers.
 
-`+972559280898`, `0559280898`, `559280898` and `00972559280898` match in Israeli phone mode. Invalid/empty keys are excluded and displayed. This validates formatting, not active numbers.
+`+972559280898`, `0559280898`, `559280898` and `00972559280898` match in Israeli phone mode. Text around a number (`tel: 052-6070482`, `052-6070482 ext 2`) is ignored. A cell holding several numbers (`052-6070482 / 054-1234567`) matches on any of them, and the rows those numbers appear in are treated as one contact across both tables. Invalid/empty keys are excluded and displayed. This validates formatting, not active numbers.
 
 ## Local use and privacy
 
