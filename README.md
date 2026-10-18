@@ -13,18 +13,30 @@ The workflow deploys on subsequent pushes to `main`. Enabling Pages initially is
 
 ## Use
 
-- Import Excel, CSV or TSV files, or paste spreadsheet cells.
-- Choose a worksheet, header setting and comparison column independently for A and B.
-- The header row and comparison column are detected automatically. Columns are ranked by how many *distinct* phone numbers they hold, so a column repeating one number (such as a destination line) is never chosen; when both tables are loaded, the column pair sharing the most keys wins. Choosing a column by hand turns detection off for that table.
-- A warning appears when the chosen column has very few distinct values. When A and B share no keys, the summary says so and, in phone mode, lists numbers that differ by a single digit (these are never matched automatically).
-- Compare normalized phone numbers, case-insensitive text or case-sensitive text.
-- Merge, remove B from A, remove A from B, find matching/unmatched rows, or clean a single table.
-- Keep first, last or all duplicate rows. Shared keys in keep-all mode retain the preferred table's rows, not a many-to-many join.
-- Align non-key columns by header name. Selected key columns combine even when their names differ.
-- Prefer A/B rows, optionally filling empty cells from the other table.
-- Export full rows to Excel or CSV, or copy a tab-separated table with headers.
+The page is one workspace: your lists and match settings on the left, the answer on the right.
 
-`+972559280898`, `0559280898`, `559280898` and `00972559280898` match in Israeli phone mode. Text around a number (`tel: 052-6070482`, `052-6070482 ext 2`) is ignored. A cell holding several numbers (`052-6070482 / 054-1234567`) matches on any of them, and the rows those numbers appear in are treated as one contact across both tables. Invalid/empty keys are excluded and displayed. This validates formatting, not active numbers.
+- **Add lists.** Drop Excel, CSV or TSV files onto a list, press Import file, or paste spreadsheet cells (Ctrl+V works anywhere on the page and fills the first empty list). Try sample lists shows the tool with example data.
+- **Detection.** The header row and match column are found automatically. Columns are ranked by how many *distinct* phone numbers they hold, so a column repeating one number is never chosen; when both lists are loaded, the column pair sharing the most keys wins. Choosing a column by hand turns detection off for that list. A warning appears when the chosen column has very few distinct values, and when the lists share no keys.
+- **Match as** phone (Israeli normalization), text (ignore case) or exact text.
+- **Choose what to see** by clicking areas of the Venn diagram (only in A, in both, only in B) or a quick pick. The selection is the operation: all three = merge, both = matching rows, A + B = unmatched rows, A only = A without B, B only = B without A, A + both = all of A, both + B = all of B.
+- **Inspect a row.** Click a row to see the A and B values side by side and pick which value goes in the result for each differing cell.
+- **Review near matches.** Phone numbers one digit apart are listed as possible matches. Accepting one links the two rows; ignoring hides it. Nothing is matched automatically.
+- **Options** (button in the header): which list wins for shared rows and whether empty cells are filled from the other list, how the match column is written (original, +972…, 0…, 972…), sorting, keeping first/last/all duplicates, and a source column for exports.
+- **Export** full rows to Excel or CSV, or copy a tab-separated table with headers. The search box only filters the preview.
+- Swap A and B, or Start over, from the buttons at the top.
+
+`+972559280898`, `0559280898`, `559280898` and `00972559280898` match in Israeli phone mode. Text around a number (`tel: 052-6070482`, `052-6070482 ext 2`) is ignored. A cell holding several numbers (`052-6070482 / 054-1234567`) matches on any of them, and the rows those numbers appear in are treated as one contact across both lists. Invalid or empty keys are excluded and can be listed from the list card. This validates formatting, not active numbers.
+
+## Code layout
+
+No build step: open `index.html` and it loads plain scripts.
+
+- `engine.js` matching and join rules, no DOM access
+- `i18n.js` English and Hebrew interface strings
+- `ui.js` state, rendering, file import and export
+- `style.css` styles, with light and dark themes and right-to-left support
+- `tests/` run with `npm test` (needs only Node 20+, no packages)
+- `mockups/` the design mockup this layout came from
 
 ## Local use and privacy
 
