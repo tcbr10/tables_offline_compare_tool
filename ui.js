@@ -85,8 +85,8 @@ function output(forExport){
 const code=()=>(V.sel.A?'a':'')+(V.sel.AB?'m':'')+(V.sel.B?'b':'');
 const NAMES={amb:['rMerge','dMerge'],m:['rMatch','dMatch'],ab:['rUn','dUn'],a:['rA','dA'],b:['rB','dB'],am:['rCleanA','dCleanA'],mb:['rCleanB','dCleanB'],'':['rNone','dNone']};
 const PRESETS=[['pAll','amb'],['pMatch','m'],['pUn','ab'],['pAB','a'],['pBA','b']];
-function setCode(c){V.sel={A:c.includes('a'),AB:c.includes('m'),B:c.includes('b')};render();}
-function toggleArea(r){V.sel[r]=!V.sel[r];render();}
+function setCode(c){V.sel={A:c.includes('a'),AB:c.includes('m'),B:c.includes('b')};refresh();}
+function toggleArea(r){V.sel[r]=!V.sel[r];refresh();}
 
 /* ---------- toast ---------- */
 function toast(msg){const n=$('toast');n.textContent=msg;n.hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>{n.hidden=true;},3200);}
