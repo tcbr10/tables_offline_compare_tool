@@ -33,6 +33,11 @@ function load(id,rows,name){
  s.header=E.headerGuess(s.raw);s.auto=true;if(name!==undefined)s.name=name;
  resetDecisions();rebuild(id);autoKeys();refresh();
 }
+function loadSaved(id,l){
+ const s=S[id];s.book=null;load(id,[l.headers,...l.rows],l.name);
+ s.header=true;rebuild(id);const k=l.keyCols[V.mode]??l.keyCols.phone??l.keyCols.id??0;s.key=Math.min(k,s.headers.length-1);s.auto=false;refresh();
+}
+function saveToLibrary(id){const s=S[id];Lib.saveFrom({name:s.name&&!s.pasted?s.name.replace(/\.[^.]+$/,''):t('list'+id),headers:s.headers,rows:s.data,key:s.key,mode:V.mode});}
 function clearList(id){S[id]=E.fresh();resetDecisions();refresh();}
 function loadSample(id){const x=SAMPLE[id];S[id].book=null;load(id,x.rows.map(r=>[...r]),x.name);}
 
@@ -62,6 +67,16 @@ async function importFile(id,file){
  finally{$('file-'+id).value='';}
  render();
 }
+/* Read a file into rows for the library: CSV/TSV/TXT or one sheet of an Excel workbook. */
+async function readFile(file){
+ if(/\.(xlsx|xls|xlsm|xlsb)$/i.test(file.name)){
+  const X=await excel(),book=X.read(await file.arrayBuffer(),{type:'array'});
+  if(!book.SheetNames.length)throw Object.assign(new Error('noSheets'),{key:'noSheets'});
+  return {book,sheets:book.SheetNames,sheet:book.SheetNames[0],rows:sheetRows(book,book.SheetNames[0])};
+ }
+ return {book:null,sheets:[],sheet:'',rows:E.parseText(await file.text())};
+}
+function sheetRows(book,name){return window.XLSX.utils.sheet_to_json(book.Sheets[name],{header:1,defval:'',raw:false,blankrows:false});}
 function pasteInto(id,text){const s=S[id];s.book=null;load(id,E.parseText(text),'');S[id].pasted=true;S[id].msg=null;render();}
 
 /* ---------- compute ---------- */
@@ -89,7 +104,20 @@ function setCode(c){V.sel={A:c.includes('a'),AB:c.includes('m'),B:c.includes('b'
 function toggleArea(r){V.sel[r]=!V.sel[r];refresh();}
 
 /* ---------- toast ---------- */
-function toast(msg){const n=$('toast');n.textContent=msg;n.hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>{n.hidden=true;},3200);}
+function toast(msg,action){const n=$('toast');n.replaceChildren(document.createTextNode(msg));if(action)n.append(h('button',{type:'button',class:'tbtn',onclick:()=>{action.run();n.hidden=true;},text:action.label}));n.hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>{n.hidden=true;},action?6000:3200);}
+
+/* ---------- dialog ---------- */
+let modalOpener=null;
+function closeModal(){const m=$('modal');if(m.hidden)return;m.hidden=true;m.replaceChildren();if(modalOpener&&document.contains(modalOpener))modalOpener.focus();modalOpener=null;}
+/* body: a node. onOk may return false to keep the dialog open. okLabel null hides the confirm button. */
+function modal(title,body,onOk,okLabel,opts){
+ const m=$('modal');modalOpener=document.activeElement;m.hidden=false;
+ const ok=okLabel===null?null:h('button',{class:'primary',type:'button',id:'modalOk',onclick:async()=>{if(onOk&&(await onOk())===false)return;closeModal();},text:okLabel||t('save')});
+ m.replaceChildren(h('div',{class:'sheet'+(opts&&opts.wide?' wide':''),role:'dialog','aria-modal':'true','aria-label':title},h('h2',{text:title}),body,h('div',{class:'acts'},h('button',{type:'button',onclick:closeModal,text:t('cancel')}),ok)));
+ const first=m.querySelector('input:not([type=file]),textarea,select')||m.querySelector('button.primary');if(first)first.focus();
+ return {close:closeModal,ok:()=>$('modalOk')};
+}
+$('modal').addEventListener('click',e=>{if(e.target===$('modal'))closeModal();});
 
 /* ---------- list cards ---------- */
 function msgNode(s){if(!s.msg)return null;const m=s.msg,text=m.k?t(m.k,...(m.a||[])):m.text;return text?h('div',{class:'msg'+(m.bad?' bad':''),text}):null;}
@@ -100,7 +128,7 @@ function listCard(id){
   const area=h('textarea',{class:'paste',id:'paste-'+id,spellcheck:'false','aria-label':t('pasteLabel',id),placeholder:t('pastePh')});
   let timer;area.addEventListener('input',()=>{clearTimeout(timer);timer=setTimeout(()=>{if(area.value.trim())pasteInto(id,area.value);},200);});
   box.append(head(null),h('div',{class:'drop'},h('span',{class:'ic','aria-hidden':'true'},ico('upload')),h('b',{text:t('dropTitle')}),h('p',{text:t('dropSub')}),
-   h('div',{class:'row'},h('button',{class:'primary sm',type:'button',id:'upload-'+id,onclick:()=>$('file-'+id).click(),text:t('importFile')})),area,msgNode(s)));
+   h('div',{class:'row'},h('button',{class:'primary sm',type:'button',id:'upload-'+id,onclick:()=>$('file-'+id).click(),text:t('importFile')}),window.Lib&&Lib.count()?h('button',{class:'sm',type:'button',id:'saved-'+id,onclick:()=>Lib.pick(l=>loadSaved(id,l)),text:t('useSaved')}):null),area,msgNode(s)));
   return;
  }
  const hs=s.headers,k=s.key;
@@ -121,7 +149,7 @@ function listCard(id){
  const mini=h('table',{},h('thead',{},h('tr',{},hs.map((x,c)=>h('th',{class:c===k?'key':'',text:x})))),h('tbody',{},s.data.slice(0,5).map(r=>h('tr',{},hs.map((_,c)=>h('td',{dir:'auto',text:r[c]??''}))))));
  const excl=s.invalid.length?h('details',{class:'excl'},h('summary',{text:t('showExcluded',s.invalid.length)}),h('pre',{text:s.invalid.slice(0,100).map(v=>t('dataRow',v.i+1,v.value)).join('\n')+(s.invalid.length>100?'\n'+t('first100'):'')})):null;
  box.append(...[
-  head(t('rowsCols',s.data.length,hs.length),h('button',{class:'ghost sm',type:'button',onclick:()=>clearList(id),text:t('remove')})),
+  head(t('rowsCols',s.data.length,hs.length),h('span',{class:'head-acts'},window.Lib?h('button',{class:'ghost sm',type:'button',id:'tolib-'+id,title:t('saveToLibraryHelp'),onclick:()=>saveToLibrary(id),text:t('saveToLibrary')}):null,h('button',{class:'ghost sm',type:'button',onclick:()=>clearList(id),text:t('remove')}))),
   h('div',{class:'fields'},h('label',{class:'field'},h('span',{class:'cap',text:t('matchOn')}),keySel),sheetSel,h('label',{class:'check'},hdr,h('span',{text:t('header')}))),
   chips,warn,excl,msgNode(s),
   h('details',{class:'peek'},h('summary',{text:t('peek')}),h('div',{class:'mini'},mini))].filter(Boolean));
@@ -232,8 +260,14 @@ function applyStatic(){
  $('langEn').setAttribute('aria-pressed',String(lang==='en'));$('langHe').setAttribute('aria-pressed',String(lang==='he'));
  const dark=document.documentElement.dataset.theme==='dark';$('themeBtn').replaceChildren(ico(dark?'sun':'moon'));
 }
+let view='compare';try{if(localStorage.getItem('table-tool-view')==='combine')view='combine';}catch(e){}
+const hooks=[];
+function setView(v){view=v;try{localStorage.setItem('table-tool-view',v);}catch(e){}render();}
 function render(){
  applyStatic();
+ $('compareView').hidden=view!=='compare';$('combineView').hidden=view!=='combine';
+ for(const b of document.querySelectorAll('#viewSeg button'))b.setAttribute('aria-pressed',String(b.dataset.view===view));
+ for(const n of document.querySelectorAll('.cmp-only'))n.hidden=view!=='compare';
  const loadedCount=(isLoaded('A')?1:0)+(isLoaded('B')?1:0),both=loadedCount===2;
  $('optBtn').disabled=!both;$('swapBtn').disabled=loadedCount===0;$('resetBtn').disabled=loadedCount===0;
  listCard('A');listCard('B');matchCard();
@@ -241,18 +275,20 @@ function render(){
  if(!both){$('onboard').querySelector('h2').textContent=t(loadedCount?'emptyTitle1':'emptyTitle');$('onboard').querySelector('p').textContent=t(loadedCount?'emptySub1':'emptySub');}
  if(both){pickCard();grid();}
  panel();
+ for(const f of hooks)f();
 }
 
 /* ---------- export ---------- */
 let excelBusy=false;
-function save(data,type,ext){const url=URL.createObjectURL(new Blob([data],{type})),a=h('a');a.href=url;a.download='table-'+(E.opFor(V.sel)||'result')+'.'+ext;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);}
+function save(data,type,ext,base){const url=URL.createObjectURL(new Blob([data],{type})),a=h('a');a.href=url;a.download=(base||'table-'+(E.opFor(V.sel)||'result'))+'.'+ext;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);}
 const quote=v=>'"'+String(v).replace(/"/g,'""')+'"';
-async function doExport(kind){
- closeMenu();const d=output(true);if(!d.rows.length)return;
- if(kind==='csv'){save('﻿'+[d.hs,...d.rows].map(r=>r.map(quote).join(',')).join('\r\n'),'text/csv;charset=utf-8','csv');toast(t('exportedCsv',d.rows.length));return;}
+function doExport(kind){closeMenu();return exportData(kind,output(true));}
+async function exportData(kind,d,base){
+ if(!d.rows.length)return;
+ if(kind==='csv'){save('﻿'+[d.hs,...d.rows].map(r=>r.map(quote).join(',')).join('\r\n'),'text/csv;charset=utf-8','csv',base);toast(t('exportedCsv',d.rows.length));return;}
  if(kind==='xlsx'){
   if(excelBusy)return;excelBusy=true;toast(t('preparingExcel'));
-  try{const X=await excel(),ws=X.utils.aoa_to_sheet([d.hs,...d.rows]),wb=X.utils.book_new();ws['!cols']=d.hs.map(x=>({wch:Math.max(16,Math.min(40,x.length+2))}));if(ws['!ref'])ws['!autofilter']={ref:ws['!ref']};X.utils.book_append_sheet(wb,ws,'Result');save(X.write(wb,{bookType:'xlsx',type:'array'}),'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','xlsx');toast(t('exportedXlsx',d.rows.length));}
+  try{const X=await excel(),ws=X.utils.aoa_to_sheet([d.hs,...d.rows]),wb=X.utils.book_new();ws['!cols']=d.hs.map(x=>({wch:Math.max(16,Math.min(40,x.length+2))}));if(ws['!ref'])ws['!autofilter']={ref:ws['!ref']};X.utils.book_append_sheet(wb,ws,'Result');save(X.write(wb,{bookType:'xlsx',type:'array'}),'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','xlsx',base);toast(t('exportedXlsx',d.rows.length));}
   catch(e){toast(e.key?t(e.key):e.message);}finally{excelBusy=false;}
   return;
  }
@@ -275,6 +311,7 @@ function swapLists(){
 function resetAll(){
  S.A=E.fresh();S.B=E.fresh();V.sel={A:true,AB:true,B:true};V.q='';$('search').value='';V.panel=null;resetDecisions();refresh();
 }
+for(const b of document.querySelectorAll('#viewSeg button'))b.onclick=()=>setView(b.dataset.view);
 $('langEn').onclick=()=>{lang='en';try{localStorage.setItem('table-tool-language','en');}catch(e){}render();};
 $('langHe').onclick=()=>{lang='he';try{localStorage.setItem('table-tool-language','he');}catch(e){}render();};
 $('themeBtn').onclick=()=>{const r=document.documentElement,next=r.dataset.theme==='dark'?'light':'dark';r.dataset.theme=next;try{localStorage.setItem('table-tool-theme',next);}catch(e){}render();};
@@ -296,19 +333,21 @@ for(const id of ['A','B']){const box=$('list'+id);
  box.addEventListener('dragleave',e=>{if(!box.contains(e.relatedTarget))box.classList.remove('over');});
  box.addEventListener('drop',e=>{box.classList.remove('over');if(hasFiles(e)){e.preventDefault();e.stopPropagation();importFile(id,e.dataTransfer.files[0]);}});}
 window.addEventListener('dragover',e=>{if(hasFiles(e))e.preventDefault();});
-window.addEventListener('drop',e=>{if(!hasFiles(e))return;e.preventDefault();const id=!isLoaded('A')?'A':!isLoaded('B')?'B':null;if(id)importFile(id,e.dataTransfer.files[0]);else toast(t('bothFull'));});
+window.addEventListener('drop',e=>{if(!hasFiles(e)||view!=='compare')return;e.preventDefault();const id=!isLoaded('A')?'A':!isLoaded('B')?'B':null;if(id)importFile(id,e.dataTransfer.files[0]);else toast(t('bothFull'));});
 
 /* paste anywhere outside a field: fills the first empty list */
 document.addEventListener('paste',e=>{
- if(/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName))return;
+ if(view!=='compare'||/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName))return;
  const text=e.clipboardData&&e.clipboardData.getData('text');if(!text||!text.trim())return;
  const id=!isLoaded('A')?'A':!isLoaded('B')?'B':null;e.preventDefault();
  if(id)pasteInto(id,text);else toast(t('bothFull'));
 });
 document.addEventListener('keydown',e=>{
- if(e.key==='Escape'){if(!$('expMenu').hidden)closeMenu();else if(V.panel)closePanel();}
- if(e.key==='/'&&bothLoaded()&&!/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)){e.preventDefault();$('search').focus();}
+ if(e.key==='Escape'){if(!$('modal').hidden)closeModal();else if(!$('expMenu').hidden)closeMenu();else if(V.panel)closePanel();}
+ if(e.key==='/'&&view==='compare'&&bothLoaded()&&!/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)){e.preventDefault();$('search').focus();}
 });
 
+window.App={E,$,h,ico,t,getLang:()=>lang,toast,modal,closeModal,excel,readFile,sheetRows,exportData,onRender:f=>hooks.push(f),render,setView,getView:()=>view,refreshCompare:refresh,
+ onLang:null};
 refresh();
 })();

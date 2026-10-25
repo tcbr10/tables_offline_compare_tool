@@ -2,7 +2,7 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('fs'),path=require('path');
 const {dict,t}=require('../i18n.js');
 const read=f=>fs.readFileSync(path.join(__dirname,'..',f),'utf8');
-const ui=read('ui.js'),html=read('index.html');
+const ui=read('ui.js')+read('combine.js'),html=read('index.html');
 
 test('English and Hebrew define the same keys',()=>{
   assert.deepEqual(Object.keys(dict.he).sort(),Object.keys(dict.en).sort());

@@ -27,19 +27,32 @@ The page is one workspace: your lists and match settings on the left, the answer
 
 `+972559280898`, `0559280898`, `559280898` and `00972559280898` match in Israeli phone mode. Text around a number (`tel: 052-6070482`, `052-6070482 ext 2`) is ignored. A cell holding several numbers (`052-6070482 / 054-1234567`) matches on any of them, and the rows those numbers appear in are treated as one contact across both lists. Invalid or empty keys are excluded and can be listed from the list card. This validates formatting, not active numbers.
 
+## Combine: saved lists, unite and remove
+
+The **Combine** tab (next to Compare in the header) works with lists saved in this browser.
+
+- **Saved lists.** Add lists from a file or pasted cells, or press *Save to library* on a Compare list card; *Use a saved list* loads one into Compare. Each list remembers its match column per match type (phone, Israeli ID, text); change it from the list card. *Update from a new file* replaces a list and shows how many keys are new, gone and unchanged first. Dropping a file on the Saved lists panel opens the add dialog.
+- **Build a list from steps.** Start with one list, then *Add* lists (unite), *Remove* lists (take out every row whose number appears in them) and *Keep only rows also in* other lists. Steps can be in any order. When a number is in several added lists the first list supplies the row and later lists fill its empty cells; a cell with several numbers joins rows across lists.
+- **Drag and drop.** Drag a list onto a step, onto one of the add-step buttons (new step), reorder lists inside a step, reorder steps by their coloured circle, or drag a list or step onto the Saved lists panel to take it out. Every drag has a button alternative and an Undo.
+- **See the effect.** The count funnel shows the total after each step and how many rows each list added or removed. The Removed tab lists the rows taken out and which list removed them. Results can be downloaded, copied, or saved as a new list (a snapshot).
+- **Recipes** save the steps and match type, not the rows, and run on the current lists when opened.
+- **Storage.** Lists and recipes live in the browser's IndexedDB on this device only; nothing is uploaded. If the browser blocks storage the tool says so and keeps them in memory. *Back up* downloads one JSON file; *Restore* merges it back (a list already here is replaced only by a newer copy). Clearing the browser's site data deletes everything saved, so back up first.
+
 ## Code layout
 
 No build step: open `index.html` and it loads plain scripts.
 
-- `engine.js` matching and join rules, no DOM access
+- `engine.js` matching, compare and combine rules, no DOM access
+- `store.js` saved lists and recipes (IndexedDB, with a memory fallback)
 - `i18n.js` English and Hebrew interface strings
-- `ui.js` state, rendering, file import and export
+- `ui.js` compare view, shared helpers (dialogs, export, file reading)
+- `combine.js` the Combine view: library, step builder, funnel, drag and drop
 - `style.css` styles, with light and dark themes and right-to-left support
 - `tests/` run with `npm test` (needs only Node 20+, no packages)
 - `mockups/` the design mockup this layout came from
 
 ## Local use and privacy
 
-Open `index.html` directly in a browser. Tables are processed locally and not uploaded or persisted by the app. Paste and CSV/TSV work offline. Excel import/export requires downloading SheetJS 0.20.3 from its CDN on first use; do not assume Excel support is available offline.
+Open `index.html` directly in a browser. Tables are processed locally and not uploaded. Nothing is kept unless you save a list in Combine; saved lists stay in this browser only. Paste and CSV/TSV work offline. Excel import/export requires downloading SheetJS 0.20.3 from its CDN on first use; do not assume Excel support is available offline.
 
 Exports contain data values only, not original workbook styling, formulas or additional sheets. Excel output stores values as text to preserve leading zeros and prevent formula interpretation. CSV has no column types; spreadsheet apps may reinterpret numbers or formula-like values. Previously rounded identifiers cannot be recovered. Preview filtering does not limit exports.

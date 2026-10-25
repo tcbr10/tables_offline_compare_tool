@@ -2,7 +2,7 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><title>Table & Phone Comparison</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%233b5bdb'/%3E%3Ccircle cx='12.5' cy='16' r='6.5' fill='none' stroke='%23fff' stroke-width='2.4'/%3E%3Ccircle cx='19.5' cy='16' r='6.5' fill='none' stroke='%23fff' stroke-width='2.4'/%3E%3C/svg%3E">
 <script>try{var t=localStorage.getItem('table-tool-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.dataset.theme=t;}catch(e){}</script>
-<link rel="stylesheet" href="./style.css?v=9c1d2f0">
+<link rel="stylesheet" href="./style.css?v=b41e7a2">
 </head><body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
 <symbol id="i-logo" viewBox="0 0 24 24"><circle cx="9" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="15" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="2.2"/></symbol>
@@ -16,6 +16,15 @@
 <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></symbol>
 <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
 <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-left" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
+<symbol id="i-right" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+<symbol id="i-up" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></symbol>
+<symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.9-3M4 5v3h3M4 13a8 8 0 0 0 14.9 3M20 19v-3h-3"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></symbol>
+<symbol id="i-save" viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5zM8 4v5h7V4M8 20v-6h8v6"/></symbol>
+<symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16zM13 7l4 4"/></symbol>
+<symbol id="i-grip" viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.4"/><circle cx="15" cy="6" r="1.4"/><circle cx="9" cy="12" r="1.4"/><circle cx="15" cy="12" r="1.4"/><circle cx="9" cy="18" r="1.4"/><circle cx="15" cy="18" r="1.4"/></symbol>
 <symbol id="i-swap" viewBox="0 0 24 24"><path d="M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4m4 4H7"/></symbol>
 </defs></svg>
 <div class="app" id="app">
@@ -24,15 +33,16 @@
       <span class="logo"><svg class="i" aria-hidden="true"><use href="#i-logo"/></svg></span>
       <div><b data-i18n="appName">Table & Phone Comparison</b><span class="privacy"><svg class="i" aria-hidden="true"><use href="#i-lock"/></svg><span data-i18n="privacy">Runs locally — nothing is uploaded</span></span></div>
     </div>
+    <div class="seg viewseg" id="viewSeg" role="group" data-i18n-aria="viewLabel" aria-label="View"><button type="button" data-view="compare" data-i18n="viewCompare">Compare</button><button type="button" data-view="combine" data-i18n="viewCombine">Combine</button></div>
     <div class="bar-actions">
-      <button id="optBtn" class="sm" type="button"><svg class="i" aria-hidden="true"><use href="#i-sliders"/></svg><span data-i18n="options">Options</span></button>
-      <button id="resetBtn" class="ghost sm" type="button" data-i18n="reset">Start over</button>
+      <button id="optBtn" class="sm cmp-only" type="button"><svg class="i" aria-hidden="true"><use href="#i-sliders"/></svg><span data-i18n="options">Options</span></button>
+      <button id="resetBtn" class="ghost sm cmp-only" type="button" data-i18n="reset">Start over</button>
       <div class="seg" id="langSeg" role="group" aria-label="Language / שפה"><button id="langEn" type="button">EN</button><button id="langHe" type="button">עברית</button></div>
       <button id="themeBtn" class="ghost icon" type="button" data-i18n-aria="theme" aria-label="Toggle dark mode"></button>
     </div>
   </header>
 
-  <div class="layout">
+  <div class="layout" id="compareView">
     <aside class="side">
       <section class="card">
         <div class="card-title-row"><h2 class="card-title" data-i18n="lists">Your lists</h2><button id="swapBtn" class="ghost sm" type="button"><svg class="i" aria-hidden="true"><use href="#i-swap"/></svg><span data-i18n="swap">Swap A and B</span></button></div>
@@ -69,13 +79,53 @@
       </div>
     </main>
   </div>
+  <div class="layout" id="combineView" hidden>
+    <aside class="side">
+      <section class="card" id="libCard">
+        <div class="card-title-row"><h2 class="card-title" data-i18n="library">Saved lists</h2><button id="addListBtn" class="primary sm" type="button"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg><span data-i18n="addList">Add list</span></button></div>
+        <p class="hint dh" id="libHint"><span class="h-idle" data-i18n="dragHint">Drag a list into a step</span><span class="h-remove" data-i18n="dropRemove">Drop here to take it out</span></p>
+        <div class="lib" id="lib"></div>
+      </section>
+      <section class="card"><h2 class="card-title" data-i18n="recipes">Saved recipes</h2><div class="lib" id="recipes"></div></section>
+      <section class="card" id="dataCard"></section>
+    </aside>
+    <main class="work">
+      <section class="card onboard" id="cOnboard" hidden>
+        <span class="logo"><svg class="i" aria-hidden="true"><use href="#i-save"/></svg></span>
+        <h2 data-i18n="libEmptyTitle">Save your lists to combine them</h2>
+        <p data-i18n="libEmptySub">Saved lists stay in this browser. Add two or more, then unite them or take one out of another.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center"><button id="cAddFirst" class="primary" type="button" data-i18n="addList">Add list</button><button id="cSamples" type="button" data-i18n="useSamples">Try sample lists</button></div>
+      </section>
+      <div id="cBuilder" hidden style="display:flex;flex-direction:column;gap:16px">
+        <section class="card" id="build">
+          <div class="build-head"><div><h2 data-i18n="buildTitle">Build a list</h2><p class="hint" data-i18n="buildSub"></p></div>
+            <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap"><label class="field"><span class="cap" data-i18n="howMatch">How to match</span><div class="seg" role="group" id="cModeSeg"><button type="button" data-mode="phone" data-i18n="mPhone">Phone</button><button type="button" data-mode="id" data-i18n="mId">Israeli ID</button><button type="button" data-mode="text" data-i18n="mText">Text</button></div></label><button id="cSaveRecipe" type="button" data-i18n="saveRecipe">Save recipe</button></div></div>
+          <p class="notice" id="cModeHelp"></p>
+          <div class="steps" id="cSteps"></div>
+          <div class="addstep" id="cAddstep"></div>
+        </section>
+        <section class="card"><h2 class="card-title" data-i18n="funnelTitle">How the count changes</h2><div class="funnel" id="cFunnel"></div></section>
+        <section class="card">
+          <div class="res-head"><div class="tabs" role="tablist" id="cTabs"></div><div class="search"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg><input type="search" id="cSearch" data-i18n-ph="search" data-i18n-aria="search"></div><span class="grow"></span>
+            <label class="check"><input type="checkbox" id="cFrom"><span data-i18n="addFromCol">Add a “From lists” column to exports</span></label>
+            <button id="cXlsx" class="primary" type="button"><svg class="i" aria-hidden="true"><use href="#i-download"/></svg><span data-i18n="dlExcel">Download Excel</span></button><button id="cCsv" type="button" data-i18n="dlCsv">Download CSV</button><button id="cCopy" type="button" data-i18n="copyTable">Copy table</button><button id="cSaveList" type="button"><svg class="i" aria-hidden="true"><use href="#i-save"/></svg><span data-i18n="saveAsList">Save as list</span></button></div>
+          <div class="tablewrap"><table id="cGrid"></table></div>
+          <p class="hint" style="margin-top:10px" id="cNote"></p>
+        </section>
+      </div>
+    </main>
+  </div>
   <details class="card foot"><summary data-i18n="footTitle">Privacy and limitations</summary><p data-i18n="footBody">Your tables are processed locally in your browser and are not uploaded. Paste, CSV and TSV work offline. Excel import/export downloads SheetJS from its CDN on first use and requires internet. The selected worksheet's data is retained, not styling, formulas or other sheets. Excel export stores values as text; CSV does not preserve column types and spreadsheet apps may interpret formulas. Already-rounded identifiers cannot be restored.</p></details>
 </div>
 <input type="file" id="file-A" accept=".xlsx,.xls,.xlsm,.xlsb,.csv,.tsv,.txt" hidden>
 <input type="file" id="file-B" accept=".xlsx,.xls,.xlsm,.xlsb,.csv,.tsv,.txt" hidden>
 <div id="overlay" hidden></div>
+<div id="modal" class="modal" hidden></div>
+<input type="file" id="restoreFile" accept=".json,application/json" hidden>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-<script src="./engine.js?v=9c1d2f0"></script>
-<script src="./i18n.js?v=9c1d2f0"></script>
-<script src="./ui.js?v=9c1d2f0"></script>
+<script src="./engine.js?v=b41e7a2"></script>
+<script src="./i18n.js?v=b41e7a2"></script>
+<script src="./store.js?v=b41e7a2"></script>
+<script src="./ui.js?v=b41e7a2"></script>
+<script src="./combine.js?v=b41e7a2"></script>
 </body></html>

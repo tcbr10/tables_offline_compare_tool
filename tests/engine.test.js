@@ -117,3 +117,46 @@ test('ID near matches are offered and can be linked',()=>{
 test('phone numbers are never read as IDs',()=>{
   for(const v of ['+972 52-607-0482','+972526070482','00972 52 607 0482','052-607-0482','0526070482','972526070482'])assert.deepEqual(E.ids(v),[],v);
 });
+
+/* ---------- combine ---------- */
+function saved(id,name,headers,rows,keyCols){return {id,name,headers,rows,keyCols};}
+const LEADS=()=>saved('leads','Leads',['Name','Phone','City'],[['A','052-607-0482','Haifa'],['B','0506998645','Eilat'],['C','054-655-6482',''],['D','0541112222','Acre'],['E','not a phone','x']],{phone:1,id:null,text:1});
+const SIGN=()=>saved('sign','Signups',['Phone','Name','Event'],[['+972526070482','A2','Fair'],['0549998888','F','Fair'],['054-655-6482','C','Fair']],{phone:0,id:null,text:0});
+const DNC=()=>saved('dnc','Do-not-call',['Phone'],[['0506998645'],['0549998888']],{phone:0,id:null,text:0});
+test('combine: union lets the first list win and fills empty cells from later lists',()=>{
+  const r=E.combine([LEADS(),SIGN()],[{type:'start',lists:['leads']},{type:'add',lists:['sign']}],'phone');
+  assert.equal(r.rows.length,5);                         // 4 valid leads + 1 new signup
+  assert.deepEqual(r.columns.map(c=>c.label),['Name','Phone','City','Event']);
+  const a=r.rows.find(x=>x.values[0]==='A');assert.deepEqual(a.from,['leads','sign']);assert.equal(a.values[3],'Fair');
+  const c=r.rows.find(x=>x.values[0]==='C');assert.equal(c.values[2],'');    // City stays empty, no list has it
+  assert.deepEqual(r.skipped,{leads:1});                // 'not a phone'
+  assert.deepEqual(r.stages.map(s=>s.total),[4,5]);
+});
+test('combine: remove takes out rows and reports which list removed them',()=>{
+  const r=E.combine([LEADS(),SIGN(),DNC()],[{type:'start',lists:['leads']},{type:'add',lists:['sign']},{type:'remove',lists:['dnc']}],'phone');
+  assert.equal(r.rows.length,3);
+  assert.equal(r.removed.length,2);assert.ok(r.removed.every(x=>x.by==='dnc'&&x.step===2));
+  assert.deepEqual(r.stages[2].counts,{dnc:2});assert.equal(r.stages[2].delta,-2);
+});
+test('combine: remove before add works, and keep drops rows with no match',()=>{
+  const r=E.combine([LEADS(),SIGN(),DNC()],[{type:'start',lists:['sign']},{type:'remove',lists:['dnc']},{type:'add',lists:['leads']}],'phone');
+  assert.equal(r.stages[1].total,2);assert.equal(r.stages[2].total,4);   // a removed number returns when a later list adds it (0506998645)
+  const k=E.combine([LEADS(),SIGN()],[{type:'start',lists:['leads']},{type:'keep',lists:['sign']}],'phone');
+  assert.equal(k.rows.length,2);assert.equal(k.removed.length,2);assert.ok(k.removed.every(x=>x.by===''));
+});
+test('combine: lists without a match column add nothing in that mode',()=>{
+  const r=E.combine([LEADS(),SIGN()],[{type:'start',lists:['leads']},{type:'add',lists:['sign']}],'id');
+  assert.equal(r.rows.length,0);
+});
+test('combine: a cell with several numbers joins rows across lists',()=>{
+  const multi=saved('m','Multi',['Phone','Name'],[['052-607-0482 / 0549998888','M']],{phone:0,id:null,text:0});
+  const r=E.combine([LEADS(),SIGN(),multi],[{type:'start',lists:['leads']},{type:'add',lists:['sign','m']}],'phone');
+  assert.equal(r.rows.length,5);                       // 'M' bridges A and F, no new row
+  assert.ok(r.rows.find(x=>x.values[0]==='A').from.includes('m'));
+});
+test('detectKeyCols finds phone and ID columns per list',()=>{
+  const rows=[['x','12345678','052-607-0482'],['y','000000018','054-111-2222'],['z','303030309','0501112233']];
+  const k=E.detectKeyCols(['Name','ת.ז.','Phone'],rows);
+  assert.equal(k.id,1);assert.equal(k.phone,2);
+  assert.equal(E.detectKeyCols(['Name'],[['a'],['b']]).phone,null);
+});

@@ -111,6 +111,63 @@ function compute(a,b,op,pref,all,over){
  return {columns,rows,conflicts};
 }
 
-const api={fresh,clean,phone,phones,ids,idCheck,key,rowKeys,parse,parseText,headerGuess,headers,rankKeys,autoKeys,nearMatches,linker,buildIndex,analyze,compute,opFor};
+/* ---------- Combine: build one list from saved lists ---------- */
+/* A saved list is {id,name,headers,rows,keyCols:{phone,id,text}}: the match column is remembered per match type. */
+const KEYCACHE=new WeakMap();
+function listKeys(l,mode){
+ const col=l.keyCols&&l.keyCols[mode];
+ if(col==null||col<0||col>=l.headers.length)return l.rows.map(()=>[]);
+ const c=KEYCACHE.get(l.rows);if(c&&c.mode===mode&&c.col===col)return c.keys;
+ const keys=l.rows.map(r=>rowKeys(r[col],mode));KEYCACHE.set(l.rows,{mode,col,keys});return keys;
+}
+const usableCount=(l,mode)=>listKeys(l,mode).filter(k=>k.length).length;
+/* Best match column per match type, using the same ranking as the compare view. */
+function detectKeyCols(headers,rows){
+ const t=fresh();t.header=true;t.headers=headers;t.data=rows;
+ const out={};
+ for(const mode of ['phone','id']){const r=headers.length&&rows.length?rankKeys(t,mode)[0]:null;out[mode]=r&&r.isTarget?r.c:null;}
+ const txt=headers.length&&rows.length?rankKeys(t,'text')[0]:null;
+ out.text=out.phone??out.id??(txt?txt.c:headers.length?0:null);
+ return out;
+}
+/* steps: [{type:'start'|'add'|'remove'|'keep',lists:[id,...]}]. start/add put the lists' rows in (first list wins a row, later lists fill its empty cells); remove drops rows whose key is in any of the lists; keep drops rows whose key is in none of them. Returns columns, rows (with the lists each came from), a stage per step (delta, total, per-list counts), the removed rows and rows skipped for lack of a usable key. */
+function combine(lists,steps,mode){
+ const byId=new Map(lists.map(l=>[l.id,l]));
+ const cols=[],cmap=new Map(),entries=new Set(),byKey=new Map(),stages=[],removed=[],skipped={};
+ const colId=(l,c,seen)=>{if(c===l.keyCols[mode])return '__k';const base='f:'+clean(l.headers[c]).toLowerCase();const n=(seen[base]=(seen[base]||0)+1);return n>1?base+'#'+n:base;};
+ const mapCols=l=>{const seen={};return l.headers.map((h,c)=>{const id=colId(l,c,seen);let col=cmap.get(id);if(!col){col={id,label:String(h),key:id==='__k'};cmap.set(id,col);cols.push(col);}return col;});};
+ const ingest=(l,counts)=>{
+  const ks=listKeys(l,mode),cm=mapCols(l);let added=0;
+  l.rows.forEach((r,i)=>{
+   const k=ks[i];if(!k.length){skipped[l.id]=(skipped[l.id]||0)+1;return;}
+   let e=null;for(const x of k){if(byKey.has(x)){e=byKey.get(x);break;}}
+   if(!e){e={vals:{},from:[l.id],keys:[...k]};entries.add(e);added++;}
+   else{if(!e.from.includes(l.id))e.from.push(l.id);for(const x of k)if(!e.keys.includes(x))e.keys.push(x);}
+   for(const x of e.keys)byKey.set(x,e);
+   r.forEach((v,c)=>{const col=cm[c];if(!col)return;if(!(col.id in e.vals)||!String(e.vals[col.id]).trim())e.vals[col.id]=String(v??'');});
+  });
+  counts[l.id]=(counts[l.id]||0)+added;
+ };
+ const keyMap=ls=>{const m=new Map();for(const l of ls)for(const k of listKeys(l,mode))for(const x of k)if(!m.has(x))m.set(x,l.id);return m;};
+ steps.forEach((st,si)=>{
+  const ls=st.lists.map(id=>byId.get(id)).filter(Boolean),counts={},before=entries.size;
+  if(st.type==='start'){entries.clear();byKey.clear();for(const l of ls)ingest(l,counts);}
+  else if(st.type==='add'){for(const l of ls)ingest(l,counts);}
+  else{
+   const set=keyMap(ls);
+   for(const e of [...entries]){
+    let by=null;
+    if(st.type==='remove'){for(const x of e.keys)if(set.has(x)){by=set.get(x);break;}}
+    else if(!e.keys.some(x=>set.has(x)))by='';
+    if(by!==null){entries.delete(e);for(const x of e.keys)byKey.delete(x);if(by)counts[by]=(counts[by]||0)+1;else counts['']=(counts['']||0)+1;removed.push({e,by,step:si});}
+   }
+  }
+  stages.push({type:st.type,counts,delta:entries.size-before,total:entries.size,empty:!ls.length&&st.type!=='start'});
+ });
+ const out=e=>({values:cols.map(c=>e.vals[c.id]??''),from:e.from,keys:e.keys});
+ return {columns:cols,rows:[...entries].map(out),stages,removed:removed.map(x=>({...out(x.e),by:x.by,step:x.step})),skipped};
+}
+
+const api={listKeys,usableCount,detectKeyCols,combine,fresh,clean,phone,phones,ids,idCheck,key,rowKeys,parse,parseText,headerGuess,headers,rankKeys,autoKeys,nearMatches,linker,buildIndex,analyze,compute,opFor};
 if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.Engine=api;
 })(typeof window!=='undefined'?window:globalThis);

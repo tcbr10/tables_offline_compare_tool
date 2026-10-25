@@ -24,7 +24,7 @@ jobs:
       - name: Prepare site
         run: |
           mkdir -p _site
-          cp index.html style.css engine.js i18n.js ui.js .nojekyll _site/
+          cp index.html style.css engine.js i18n.js store.js ui.js combine.js .nojekyll _site/
       - uses: actions/upload-pages-artifact@v3
         with:
           name: site-${{ github.run_id }}-${{ github.run_attempt }}
