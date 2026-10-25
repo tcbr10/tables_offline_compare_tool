@@ -113,3 +113,7 @@ test('ID near matches are offered and can be linked',()=>{
   assert.deepEqual(stats.near,[['123456782','123456783']]);
   assert.equal(E.analyze(a,b,{mode:'id',dups:'first',links:stats.near}).both,1);
 });
+
+test('phone numbers are never read as IDs',()=>{
+  for(const v of ['+972 52-607-0482','+972526070482','00972 52 607 0482','052-607-0482','0526070482','972526070482'])assert.deepEqual(E.ids(v),[],v);
+});
