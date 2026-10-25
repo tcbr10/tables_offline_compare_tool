@@ -38,7 +38,7 @@ function cleanRecipe(v){
  if(!v||!isStr(v.id)||!isStr(v.name)||!Array.isArray(v.steps))return null;
  const types=['start','add','remove','keep'],steps=[];
  for(const s of v.steps){if(!s||!types.includes(s.type)||!Array.isArray(s.lists))return null;steps.push({type:s.type,lists:s.lists.filter(isStr)});}
- return {id:v.id,name:v.name.slice(0,120)||'Recipe',mode:['phone','id','text'].includes(v.mode)?v.mode:'phone',steps,updated:Number(v.updated)||Date.now()};
+ return {id:v.id,name:v.name.slice(0,120)||'Recipe',mode:['phone','id','text'].includes(v.mode)?v.mode:'phone',steps,hidden:Array.isArray(v.hidden)?v.hidden.filter(isStr):[],updated:Number(v.updated)||Date.now()};
 }
 const newId=p=>p+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 

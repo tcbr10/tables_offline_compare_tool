@@ -160,3 +160,9 @@ test('detectKeyCols finds phone and ID columns per list',()=>{
   assert.equal(k.id,1);assert.equal(k.phone,2);
   assert.equal(E.detectKeyCols(['Name'],[['a'],['b']]).phone,null);
 });
+test('combine columns report which lists contribute them',()=>{
+  const r=E.combine([LEADS(),SIGN()],[{type:'start',lists:['leads']},{type:'add',lists:['sign']}],'phone');
+  const by=Object.fromEntries(r.columns.map(c=>[c.label,c.lists]));
+  assert.deepEqual(by.Name,['leads','sign']);assert.deepEqual(by.City,['leads']);assert.deepEqual(by.Event,['sign']);
+  assert.deepEqual(r.columns.find(c=>c.key).lists,['leads','sign']);
+});

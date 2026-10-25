@@ -12,7 +12,7 @@ const t=(k,...a)=>I.t(lang,k,...a);
 
 /* ---------- state ---------- */
 const S={A:E.fresh(),B:E.fresh()};
-const V={mode:'phone',sel:{A:true,AB:true,B:true},dups:'first',prefer:'A',fill:true,fmt:'original',sort:false,exportSource:false,q:'',over:{},links:[],ignored:new Set(),open:null,panel:null};
+const V={hidden:new Set(),mode:'phone',sel:{A:true,AB:true,B:true},dups:'first',prefer:'A',fill:true,fmt:'original',sort:false,exportSource:false,q:'',over:{},links:[],ignored:new Set(),open:null,panel:null};
 let stats={both:0,aOnly:0,bOnly:0,near:[]},result={columns:[],rows:[],conflicts:0};
 const isLoaded=id=>S[id].raw.length>0;
 const bothLoaded=()=>isLoaded('A')&&isLoaded('B');
@@ -92,10 +92,11 @@ function refresh(){recompute();render();}
 const local=k=>k.startsWith('+972')?'0'+k.slice(4):k;
 function fmtKey(k){if(V.fmt==='local')return local(k);if(V.fmt==='digits')return k.replace(/^\+/,'');return k;}
 function output(forExport){
- const hs=result.columns.map(c=>c.label),k=result.columns.findIndex(c=>c.key);let src=false;
+ const idx=result.columns.map((c,i)=>i).filter(i=>!V.hidden.has(result.columns[i].id)),k0=result.columns.findIndex(c=>c.key),k=idx.indexOf(k0);
+ const hs=idx.map(i=>result.columns[i].label);let src=false;
  if(forExport&&V.exportSource){let label=t('source'),i=2;while(hs.some(x=>x.toLowerCase()===label.toLowerCase()))label=t('source')+' ('+i+++')';hs.push(label);src=true;}
- const rows=result.rows.map(r=>{const v=[...r.values];if(k>=0&&V.mode==='phone'&&V.fmt!=='original')v[k]=(r.keys||[r.key]).map(fmtKey).join(' / ');if(src)v.push(r.source);return v;});
- return {hs,rows,k};
+ const rows=result.rows.map(r=>{const full=[...r.values];if(k0>=0&&V.mode==='phone'&&V.fmt!=='original')full[k0]=(r.keys||[r.key]).map(fmtKey).join(' / ');const v=idx.map(i=>full[i]);if(src)v.push(r.source);return v;});
+ return {hs,rows,k,idx};
 }
 const code=()=>(V.sel.A?'a':'')+(V.sel.AB?'m':'')+(V.sel.B?'b':'');
 const NAMES={amb:['rMerge','dMerge'],m:['rMatch','dMatch'],ab:['rUn','dUn'],a:['rA','dA'],b:['rB','dB'],am:['rCleanA','dCleanA'],mb:['rCleanB','dCleanB'],'':['rNone','dNone']};
@@ -211,17 +212,49 @@ function grid(){
  for(const i of shown){
   const r=result.rows[i],vals=d.rows[i];
   const tr=h('tr',{class:'row'+(V.open===r.id?' sel':''),'data-s':r.source==='A+B'?'AB':r.source,'data-id':r.id,tabindex:'0',onclick:()=>openRow(r.id),onkeydown:e=>{if(e.key==='Enter')openRow(r.id);}},h('td',{class:'src'},h('span',{class:'badge',text:r.source})));
-  vals.forEach((v,c)=>{const isKey=c===d.k,diff=r.conf.has(c),txt=String(v);tr.append(h('td',{class:(isKey&&(V.mode==='phone'||V.mode==='id')?'k ':'')+(diff?'diff ':'')+(txt.trim()?'':'empty'),dir:isKey&&(V.mode==='phone'||V.mode==='id')?'ltr':'auto',title:diff?'A: '+r.va[c]+'  |  B: '+r.vb[c]:txt,text:txt.trim()?txt:'—'}));});
+  vals.forEach((v,c)=>{const oc=d.idx[c],isKey=c===d.k,diff=r.conf.has(oc),txt=String(v);tr.append(h('td',{class:(isKey&&(V.mode==='phone'||V.mode==='id')?'k ':'')+(diff?'diff ':'')+(txt.trim()?'':'empty'),dir:isKey&&(V.mode==='phone'||V.mode==='id')?'ltr':'auto',title:diff?'A: '+r.va[oc]+'  |  B: '+r.vb[oc]:txt,text:txt.trim()?txt:'—'}));});
   body.append(tr);
  }
  tbl.append(head,body);
- const diffs=keep.reduce((n,i)=>n+result.rows[i].conf.size,0);
+ const diffs=keep.reduce((n,i)=>n+[...result.rows[i].conf].filter(c=>d.idx.includes(c)).length,0);
  $('count').textContent=(keep.length>LIMIT?t('showingFirst',LIMIT,keep.length.toLocaleString()):t('rows',keep.length.toLocaleString()))+(diffs?' · '+t('diffs',diffs):'');
  for(const b of ['expMain','expMore'])$(b).disabled=!result.rows.length;
+ $('colBtn').textContent=t('columnsBtn',d.idx.length,result.columns.length);$('colBtn').disabled=!result.columns.length;
 }
 
 /* ---------- slide-over panel ---------- */
 let opener=null,openerRow=null;
+/* Column picker shared by Compare and Combine. items: [{id,label,key,sources:[{id,name,color}]}]. visible: Set of ids shown. sources: lists the quick "Only from" buttons offer. groupOf(item): {k,label}. onApply(Set of visible ids). */
+function pickColumns({items,visible,sources,groupOf,onApply}){
+ const sel=new Set(visible);let m;
+ const list=h('div',{class:'colpick'}),count=h('span',{class:'hint'});
+ const pill=s=>h('span',{class:'pill',style:'--c:'+s.color,title:s.name},h('i'),h('b',{text:s.name}));
+ const sync=()=>{count.textContent=t('colsCount',sel.size,items.length);if(m)m.ok().disabled=!sel.size;};
+ const draw=()=>{
+  list.replaceChildren();const groups=new Map();
+  for(const it of items){const g=groupOf(it);if(!groups.has(g.k))groups.set(g.k,{label:g.label,items:[]});groups.get(g.k).items.push(it);}
+  for(const [,g] of [...groups.entries()].sort((a,b)=>String(a[0]).localeCompare(String(b[0])))){
+   list.append(h('div',{class:'cgroup',text:g.label}));
+   for(const it of g.items)list.append(h('label',{class:'crow'},h('input',{type:'checkbox',checked:sel.has(it.id),onchange:e=>{if(e.target.checked)sel.add(it.id);else sel.delete(it.id);sync();}}),h('span',{class:'cname',text:it.label}),h('span',{class:'csrc'},it.sources.map(pill))));
+  }
+  sync();
+ };
+ const quick=h('div',{class:'cquick'},
+  h('button',{class:'sm',type:'button',onclick:()=>{items.forEach(i=>sel.add(i.id));draw();},text:t('colsAll')}),
+  h('button',{class:'sm',type:'button',onclick:()=>{sel.clear();draw();},text:t('colsNone')}),
+  sources.length>1?h('span',{class:'cap',text:t('colsOnlyFrom')}):null,
+  sources.length>1?sources.map(s=>h('button',{class:'sm',type:'button',onclick:()=>{sel.clear();items.filter(i=>i.sources.some(x=>x.id===s.id)).forEach(i=>sel.add(i.id));draw();}},h('i',{class:'sdot',style:'background:'+s.color}),s.name)):null);
+ const body=h('div',{style:'display:flex;flex-direction:column;gap:12px'},h('p',{class:'hint',text:t('colsHelp')}),quick,list,count);
+ m=modal(t('colsTitle'),body,()=>{onApply(new Set(sel));},t('colsApply'),{wide:true});
+ draw();
+}
+function openColumns(){
+ const sA={id:'A',name:t('listA'),color:'var(--a)'},sB={id:'B',name:t('listB'),color:'var(--b)'};
+ const items=result.columns.map(c=>({id:c.id,label:c.label,key:c.key,sources:[c.refs.A!==undefined?sA:null,c.refs.B!==undefined?sB:null].filter(Boolean)}));
+ pickColumns({items,visible:new Set(items.filter(i=>!V.hidden.has(i.id)).map(i=>i.id)),sources:[sA,sB].filter(s=>items.some(i=>i.sources.includes(s))),
+  groupOf:i=>i.key?{k:'0',label:t('colsKey')}:i.sources.length>1?{k:'3',label:t('colsBoth')}:i.sources[0].id==='A'?{k:'1',label:t('colsOnlyA')}:{k:'2',label:t('colsOnlyB')},
+  onApply:vis=>{V.hidden=new Set(items.filter(i=>!vis.has(i.id)).map(i=>i.id));refresh();}});
+}
 function closePanel(){V.panel=null;V.open=null;render();const el=openerRow?document.querySelector('tr[data-id="'+CSS.escape(openerRow)+'"]'):opener;if(el&&document.contains(el))el.focus();opener=openerRow=null;}
 function panel(){
  const o=$('overlay'),wasOpen=!!o.querySelector('.panel');o.replaceChildren();o.hidden=!V.panel;if(!V.panel)return;
@@ -309,13 +342,14 @@ function swapLists(){
  refresh();
 }
 function resetAll(){
- S.A=E.fresh();S.B=E.fresh();V.sel={A:true,AB:true,B:true};V.q='';$('search').value='';V.panel=null;resetDecisions();refresh();
+ S.A=E.fresh();S.B=E.fresh();V.sel={A:true,AB:true,B:true};V.hidden=new Set();V.q='';$('search').value='';V.panel=null;resetDecisions();refresh();
 }
 for(const b of document.querySelectorAll('#viewSeg button'))b.onclick=()=>setView(b.dataset.view);
 $('langEn').onclick=()=>{lang='en';try{localStorage.setItem('table-tool-language','en');}catch(e){}render();};
 $('langHe').onclick=()=>{lang='he';try{localStorage.setItem('table-tool-language','he');}catch(e){}render();};
 $('themeBtn').onclick=()=>{const r=document.documentElement,next=r.dataset.theme==='dark'?'light':'dark';r.dataset.theme=next;try{localStorage.setItem('table-tool-theme',next);}catch(e){}render();};
 $('optBtn').onclick=()=>openPanel('options');
+$('colBtn').onclick=openColumns;
 $('swapBtn').onclick=swapLists;
 $('resetBtn').onclick=resetAll;
 $('sampleBtn').onclick=()=>{for(const id of ['A','B'])if(!isLoaded(id)){S[id].book=null;const x=SAMPLE[id];S[id].raw=x.rows.map(r=>[...r]);S[id].header=true;S[id].auto=true;S[id].name=x.name;rebuild(id);}resetDecisions();autoKeys();refresh();};
@@ -347,7 +381,7 @@ document.addEventListener('keydown',e=>{
  if(e.key==='/'&&view==='compare'&&bothLoaded()&&!/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)){e.preventDefault();$('search').focus();}
 });
 
-window.App={E,$,h,ico,t,getLang:()=>lang,toast,modal,closeModal,excel,readFile,sheetRows,exportData,onRender:f=>hooks.push(f),render,setView,getView:()=>view,refreshCompare:refresh,
+window.App={pickColumns,E,$,h,ico,t,getLang:()=>lang,toast,modal,closeModal,excel,readFile,sheetRows,exportData,onRender:f=>hooks.push(f),render,setView,getView:()=>view,refreshCompare:refresh,
  onLang:null};
 refresh();
 })();

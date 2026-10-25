@@ -8,7 +8,7 @@ const DRAFT='table-tool-combine-draft';
 const LIMIT=200;
 
 let LIB=[],RECIPES=[],store=null,R={columns:[],rows:[],stages:[],removed:[],skipped:{}};
-const C={mode:'phone',steps:[],tab:'result',q:'',pop:null,exportFrom:false,flash:null};
+const C={hidden:new Set(),mode:'phone',steps:[],tab:'result',q:'',pop:null,exportFrom:false,flash:null};
 const byId=id=>LIB.find(l=>l.id===id);
 const colorOf=l=>COLORS[l.color%COLORS.length];
 const modeName=m=>t({phone:'mPhone',id:'mId',text:'mText'}[m]);
@@ -16,11 +16,11 @@ const keyCol=l=>l.keyCols[C.mode];
 
 /* ---------- state ---------- */
 function recompute(){R=E.combine(LIB,C.steps,C.mode);}
-function persistDraft(){try{localStorage.setItem(DRAFT,JSON.stringify({mode:C.mode,steps:C.steps}));}catch(e){}}
+function persistDraft(){try{localStorage.setItem(DRAFT,JSON.stringify({mode:C.mode,steps:C.steps,hidden:[...C.hidden]}));}catch(e){}}
 function changed(){recompute();persistDraft();App.render();}
 function loadDraft(){
  let d=null;try{d=JSON.parse(localStorage.getItem(DRAFT)||'null');}catch(e){}
- if(d&&Array.isArray(d.steps)&&d.steps.length&&['phone','id','text'].includes(d.mode)){C.mode=d.mode;C.steps=d.steps.map(s=>({type:s.type,lists:(s.lists||[]).filter(id=>byId(id))}));}
+ if(d&&Array.isArray(d.steps)&&d.steps.length&&['phone','id','text'].includes(d.mode)){C.mode=d.mode;C.steps=d.steps.map(s=>({type:s.type,lists:(s.lists||[]).filter(id=>byId(id))}));C.hidden=new Set(Array.isArray(d.hidden)?d.hidden:[]);}
  if(!C.steps.length||C.steps[0].type!=='start')C.steps.unshift({type:'start',lists:LIB[0]?[LIB[0].id]:[]});
 }
 function nextColor(){const use=COLORS.map(()=>0);for(const l of LIB)use[l.color%6]++;return use.indexOf(Math.min(...use));}
@@ -65,7 +65,7 @@ function renderLib(){
  const rb=$('recipes');rb.replaceChildren();
  if(!RECIPES.length)rb.append(h('p',{class:'hint',text:t('noRecipes')}));
  for(const r of RECIPES)rb.append(h('div',{class:'rcard'},
-  h('button',{class:'load',type:'button',title:t('loadRecipe'),onclick:()=>{C.mode=r.mode;C.steps=r.steps.map(s=>({type:s.type,lists:s.lists.filter(id=>byId(id))}));if(!C.steps.length||C.steps[0].type!=='start')C.steps.unshift({type:'start',lists:[]});C.pop=null;changed();}},h('span',{text:r.name})),
+  h('button',{class:'load',type:'button',title:t('loadRecipe'),onclick:()=>{C.mode=r.mode;C.hidden=new Set(r.hidden||[]);C.steps=r.steps.map(s=>({type:s.type,lists:s.lists.filter(id=>byId(id))}));if(!C.steps.length||C.steps[0].type!=='start')C.steps.unshift({type:'start',lists:[]});C.pop=null;changed();}},h('span',{text:r.name})),
   h('span',{class:'live',title:t('live'),text:'●'}),
   h('button',{class:'ghost sm',style:'width:30px;padding:0',type:'button',title:t('delRecipe'),'aria-label':t('delRecipe')+': '+r.name,onclick:async()=>{await store.deleteRecipe(r.id);RECIPES=RECIPES.filter(x=>x.id!==r.id);App.render();}},ico('x'))));
 }
@@ -93,7 +93,7 @@ function deleteDialog(l){
  },t('del'));
 }
 function clearDialog(){
- modal(t('clearTitle'),h('p',{class:'hint',style:'font-size:14px',text:t('clearBody')}),async()=>{await store.clearAll();LIB=[];RECIPES=[];C.steps=[{type:'start',lists:[]}];changed();toast(t('cleared'));},t('clearData'));
+ modal(t('clearTitle'),h('p',{class:'hint',style:'font-size:14px',text:t('clearBody')}),async()=>{await store.clearAll();LIB=[];RECIPES=[];C.hidden=new Set();C.steps=[{type:'start',lists:[]}];changed();toast(t('cleared'));},t('clearData'));
 }
 async function backup(){
  const data=await store.exportAll(),blob=new Blob([JSON.stringify(data)],{type:'application/json'}),url=URL.createObjectURL(blob),a=h('a');
@@ -238,36 +238,38 @@ function fromCell(from){
  if(ls.length>2)wrap.append(h('span',{class:'pill',title:ls.slice(2).map(l=>l.name).join(', ')},h('b',{text:'+'+(ls.length-2)})));
  return wrap;
 }
+const visIdx=()=>R.columns.map((c,i)=>i).filter(i=>!C.hidden.has(R.columns[i].id));
 function renderResult(){
  const tabs=$('cTabs');
  tabs.replaceChildren(
   h('button',{role:'tab','aria-selected':String(C.tab==='result'),type:'button',onclick:()=>{C.tab='result';App.render();}},t('tabResult')+' ',h('b',{text:fmt(R.rows.length)})),
   h('button',{role:'tab','aria-selected':String(C.tab==='removed'),type:'button',onclick:()=>{C.tab='removed';App.render();}},t('tabRemoved')+' ',h('b',{text:fmt(R.removed.length)})));
- const q=C.q.toLowerCase().trim(),isR=C.tab==='result',src=isR?R.rows:R.removed;
- const f=q?src.filter(r=>r.values.some(v=>String(v).toLowerCase().includes(q))):src;
+ const vis=visIdx(),q=C.q.toLowerCase().trim(),isR=C.tab==='result',src=isR?R.rows:R.removed;
+ const f=q?src.filter(r=>vis.some(i=>String(r.values[i]).toLowerCase().includes(q))):src;
  const tbl=$('cGrid');tbl.replaceChildren();
- tbl.append(h('thead',{},h('tr',{},h('th',{text:isR?t('from'):t('removedBy')}),R.columns.map(c=>h('th',{class:c.key?'key':'',text:c.label})))));
+ tbl.append(h('thead',{},h('tr',{},h('th',{text:isR?t('from'):t('removedBy')}),vis.map(i=>h('th',{class:R.columns[i].key?'key':'',text:R.columns[i].label})))));
  const body=h('tbody');
- if(!f.length)body.append(h('tr',{},h('td',{class:'none',colspan:R.columns.length+1,text:C.steps.some(s=>s.lists.length)?t('noRows'):t('emptyResult')})));
+ if(!f.length)body.append(h('tr',{},h('td',{class:'none',colspan:vis.length+1,text:C.steps.some(s=>s.lists.length)?t('noRows'):t('emptyResult')})));
  for(const r of f.slice(0,LIMIT)){
   const l=!isR&&r.by?byId(r.by):null;
   body.append(h('tr',{},h('td',{},isR?fromCell(r.from):(l?pillOf(l):h('span',{class:'hint',text:r.by===''?t('noMatchRemoved'):t('step')+' '+(r.step+1)}))),
-   R.columns.map((c,i)=>h('td',{class:c.key&&C.mode!=='text'?'k':'',dir:c.key&&C.mode!=='text'?'ltr':'auto',text:String(r.values[i]).trim()?r.values[i]:'—'}))));
+   vis.map(i=>{const c=R.columns[i];return h('td',{class:c.key&&C.mode!=='text'?'k':'',dir:c.key&&C.mode!=='text'?'ltr':'auto',text:String(r.values[i]).trim()?r.values[i]:'—'});})));
  }
  tbl.append(body);
  $('cNote').textContent=f.length>LIMIT?t('noteResult',LIMIT,fmt(f.length)):(isR?t('noteAll'):t('noteRemoved'));
  for(const id of ['cXlsx','cCsv','cCopy','cSaveList'])$(id).disabled=!R.rows.length;
+ $('cColBtn').textContent=t('columnsBtn',vis.length,R.columns.length);$('cColBtn').disabled=!R.columns.length;
 }
 function exportKind(kind){
- const hs=R.columns.map(c=>c.label);if(C.exportFrom)hs.push(t('fromLists'));
- const rows=R.rows.map(r=>C.exportFrom?[...r.values,r.from.map(id=>byId(id)?.name||'').filter(Boolean).join(' + ')]:r.values);
+ const vis=visIdx(),hs=vis.map(i=>R.columns[i].label);if(C.exportFrom)hs.push(t('fromLists'));
+ const rows=R.rows.map(r=>{const v=vis.map(i=>r.values[i]);if(C.exportFrom)v.push(r.from.map(id=>byId(id)?.name||'').filter(Boolean).join(' + '));return v;});
  return App.exportData(kind,{hs,rows},'combined');
 }
 function saveResultDialog(){
  const name=h('input',{type:'text',id:'sr-name',value:t('defaultResult')});
  modal(t('mSaveListTitle'),h('div',{style:'display:flex;flex-direction:column;gap:10px'},field(t('mName'),name),h('p',{class:'hint',text:t('saveListHelp')})),async()=>{
   const v=name.value.trim();if(!v){name.focus();return false;}
-  const headers=R.columns.map(c=>c.label),rows=R.rows.map(r=>[...r.values]),keyCols=E.detectKeyCols(headers,rows),ki=R.columns.findIndex(c=>c.key);
+  const vis=visIdx(),headers=vis.map(i=>R.columns[i].label),rows=R.rows.map(r=>vis.map(i=>r.values[i])),keyCols=E.detectKeyCols(headers,rows),ki=vis.findIndex(i=>R.columns[i].key);
   if(ki>=0)keyCols[C.mode]=ki;
   const l=await addList({name:v,headers,rows,keyCols});changed();toast(t('savedList',l.name));
  });
@@ -276,9 +278,18 @@ function saveRecipeDialog(){
  const name=h('input',{type:'text',id:'rec-name',value:''});
  modal(t('mSaveRecipeTitle'),h('div',{style:'display:flex;flex-direction:column;gap:10px'},field(t('mName'),name),h('p',{class:'hint',text:t('mRecipeHelp')})),async()=>{
   const v=name.value.trim();if(!v){name.focus();return false;}
-  const r=await store.saveRecipe({id:store.newId('r'),name:v,mode:C.mode,steps:C.steps.map(s=>({type:s.type,lists:[...s.lists]}))});
+  const r=await store.saveRecipe({id:store.newId('r'),name:v,mode:C.mode,hidden:[...C.hidden],steps:C.steps.map(s=>({type:s.type,lists:[...s.lists]}))});
   RECIPES.push(r);App.render();toast(t('savedRecipe',v));
  });
+}
+
+function openColumns(){
+ const src=id=>{const l=byId(id);return l?{id,name:l.name,color:colorOf(l)}:null;};
+ const items=R.columns.map(c=>({id:c.id,label:c.label,key:c.key,sources:c.lists.map(src).filter(Boolean)}));
+ const used=[...new Set(items.flatMap(i=>i.sources.map(s=>s.id)))].map(src);
+ App.pickColumns({items,visible:new Set(items.filter(i=>!C.hidden.has(i.id)).map(i=>i.id)),sources:used,
+  groupOf:i=>i.key?{k:'0',label:t('colsKey')}:i.sources.length>1?{k:'9',label:t('colsSeveral')}:{k:'1'+(i.sources[0]?i.sources[0].name:''),label:t('colsOnlyList',i.sources[0]?i.sources[0].name:'—')},
+  onApply:vis=>{C.hidden=new Set(items.filter(i=>!vis.has(i.id)).map(i=>i.id));changed();}});
 }
 
 /* ---------- render ---------- */
@@ -296,6 +307,7 @@ $('addListBtn').onclick=()=>addDialog();
 $('cAddFirst').onclick=()=>addDialog();
 $('cSamples').onclick=addSamples;
 $('cSaveList').onclick=saveResultDialog;
+$('cColBtn').onclick=openColumns;
 $('cSaveRecipe').onclick=saveRecipeDialog;
 $('cXlsx').onclick=()=>exportKind('xlsx');$('cCsv').onclick=()=>exportKind('csv');$('cCopy').onclick=()=>exportKind('copy');
 $('cFrom').onchange=e=>{C.exportFrom=e.target.checked;};

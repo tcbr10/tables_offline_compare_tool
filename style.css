@@ -343,3 +343,16 @@ body.drag-chip .dh .h-remove,body.drag-step .dh .h-remove{display:inline}
 .head-acts{display:inline-flex;gap:2px;flex-wrap:wrap}
 .viewseg{order:0}
 @media (max-width:700px){.viewseg{order:3;width:100%;justify-content:stretch}.viewseg button{flex:1}}
+
+/* column picker */
+.colpick{display:flex;flex-direction:column;gap:2px;max-height:min(46vh,420px);overflow:auto;border:1px solid var(--line);border-radius:12px;padding:6px}
+.cgroup{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--mute);padding:10px 8px 4px}
+.cgroup:first-child{padding-top:4px}
+.crow{display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:8px;cursor:pointer}
+.crow:hover{background:var(--accent-soft)}
+.cname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.csrc{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.csrc .pill{font-size:12px;padding:0 8px 0 6px}
+.cquick{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.sdot{width:9px;height:9px;border-radius:50%;flex:none}
+#colBtn,#cColBtn{font-variant-numeric:tabular-nums}

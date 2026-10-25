@@ -135,7 +135,7 @@ function combine(lists,steps,mode){
  const byId=new Map(lists.map(l=>[l.id,l]));
  const cols=[],cmap=new Map(),entries=new Set(),byKey=new Map(),stages=[],removed=[],skipped={};
  const colId=(l,c,seen)=>{if(c===l.keyCols[mode])return '__k';const base='f:'+clean(l.headers[c]).toLowerCase();const n=(seen[base]=(seen[base]||0)+1);return n>1?base+'#'+n:base;};
- const mapCols=l=>{const seen={};return l.headers.map((h,c)=>{const id=colId(l,c,seen);let col=cmap.get(id);if(!col){col={id,label:String(h),key:id==='__k'};cmap.set(id,col);cols.push(col);}return col;});};
+ const mapCols=l=>{const seen={};return l.headers.map((h,c)=>{const id=colId(l,c,seen);let col=cmap.get(id);if(!col){col={id,label:String(h),key:id==='__k',lists:[]};cmap.set(id,col);cols.push(col);}if(!col.lists.includes(l.id))col.lists.push(l.id);return col;});};
  const ingest=(l,counts)=>{
   const ks=listKeys(l,mode),cm=mapCols(l);let added=0;
   l.rows.forEach((r,i)=>{

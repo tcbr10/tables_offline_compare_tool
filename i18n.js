@@ -23,7 +23,7 @@ rMerge:'Merge A + B',rMatch:'Matching rows',rUn:'Unmatched rows',rA:'A without B
 dMerge:'Every row from both lists. A row found in both lists becomes one row.',dMatch:'Rows whose key appears in both lists, combined into one row.',dUn:'Rows that appear in only one of the lists.',
 dA:'Rows from A whose key is not in B.',dB:'Rows from B whose key is not in A.',dCleanA:'Every row of A, one per key. Only A’s columns.',dCleanB:'Every row of B, one per key. Only B’s columns.',dNone:'Select at least one area of the diagram.',
 search:'Search any column…',dlExcel:'Download Excel',dlCsv:'Download CSV',copyTable:'Copy table',moreExport:'More export options',
-previewNote:'Preview: up to 500 rows. Export and copy include the entire result, regardless of the search.',
+previewNote:'Preview: up to 500 rows. Export and copy include every row of the result, regardless of the search, and only the columns you chose.',
 source:'Source',rows:n=>`${n} rows`,showingFirst:(s,n)=>`Showing first ${s} of ${n} rows`,diffs:n=>`${n} differing cells`,noRows:'No rows to show.',
 inspect:'Compare row',field:'Field',used:'In result',pick:'Click a value to use it in the result. Marked fields differ between the lists.',inA:'List A',inB:'List B',close:'Close',onlyHere:l=>`This row comes from ${l} only.`,
 optTitle:'Options',oPrefer:'When a row is in both lists, use values from',oFill:'Fill empty cells from the other list',oPreferHelp:'You can also choose a value for a single cell by clicking a row in the results.',
@@ -65,6 +65,7 @@ backup:'Back up',restore:'Restore',clearData:'Delete all saved data',clearTitle:
 backedUp:(a,b)=>`Backed up ${a} lists and ${b} recipes.`,restored:(a,b,c)=>`Restored ${a} lists and ${b} recipes${c?` (${c} skipped: already up to date or invalid)`:''}.`,notBackup:'That file is not a backup from this tool.',
 useSaved:'Use a saved list',saveToLibrary:'Save to library',saveToLibraryHelp:'Keep this list in your saved lists so you can compare or combine it later.',openCombine:'Open Combine',pickTitle:'Use a saved list',noSaved:'No saved lists yet. Save one from the Combine view or a list card.',
 cancel:'Cancel',save:'Save',saveAsList:'Save as list',
+columnsBtn:(n,m)=>`Columns (${n}/${m})`,colsTitle:'Choose columns',colsHelp:'Only the columns you tick appear in the table, in downloads and in copies. You can hide the match column too. At least one column must stay.',colsAll:'All',colsNone:'None',colsOnlyFrom:'Only from',colsKey:'Match column',colsBoth:'In both lists',colsOnlyA:'Only in list A',colsOnlyB:'Only in list B',colsSeveral:'In several lists',colsOnlyList:n=>`Only in ${n}`,colsApply:'Apply',colsCount:(n,m)=>`${n} of ${m} columns selected`,
 footTitle:'Privacy and limitations',
 footBody:'Your tables are processed locally in your browser and are not uploaded. Paste, CSV and TSV work offline. Excel import/export downloads SheetJS from its CDN on first use and requires internet. The selected worksheet\'s data is retained, not styling, formulas or other sheets. Excel export stores values as text; CSV does not preserve column types and spreadsheet apps may interpret formulas. Already-rounded identifiers cannot be restored. Lists and recipes you save are kept in this browser on this device only and are not uploaded; back them up from the Combine view, because clearing the browser’s site data deletes them.'
 },
@@ -89,7 +90,7 @@ rMerge:'מיזוג A ו־B',rMatch:'שורות תואמות',rUn:'שורות ל�
 dMerge:'כל השורות משתי הרשימות. שורה שמופיעה בשתיהן הופכת לשורה אחת.',dMatch:'שורות שהערך שלהן מופיע בשתי הרשימות, מאוחדות לשורה אחת.',dUn:'שורות שמופיעות רק באחת הרשימות.',
 dA:'שורות מ־A שהערך שלהן לא מופיע ב־B.',dB:'שורות מ־B שהערך שלהן לא מופיע ב־A.',dCleanA:'כל השורות של A, שורה אחת לכל ערך. רק העמודות של A.',dCleanB:'כל השורות של B, שורה אחת לכל ערך. רק העמודות של B.',dNone:'בחרו לפחות אזור אחד בתרשים.',
 search:'חיפוש בכל העמודות…',dlExcel:'הורדת Excel',dlCsv:'הורדת CSV',copyTable:'העתקת הטבלה',moreExport:'אפשרויות ייצוא נוספות',
-previewNote:'תצוגה מקדימה: עד 500 שורות. הייצוא וההעתקה כוללים את כל התוצאה, ללא קשר לחיפוש.',
+previewNote:'תצוגה מקדימה: עד 500 שורות. הייצוא וההעתקה כוללים את כל שורות התוצאה, ללא קשר לחיפוש, ורק את העמודות שנבחרו.',
 source:'מקור',rows:n=>`${n} שורות`,showingFirst:(s,n)=>`מוצגות ${s} הראשונות מתוך ${n} שורות`,diffs:n=>`${n} תאים שונים`,noRows:'אין שורות להצגה.',
 inspect:'השוואת שורה',field:'שדה',used:'בתוצאה',pick:'לחצו על ערך כדי להשתמש בו בתוצאה. שדות מסומנים שונים בין הרשימות.',inA:'רשימה A',inB:'רשימה B',close:'סגירה',onlyHere:l=>`השורה הזאת מגיעה רק מ${l}.`,
 optTitle:'אפשרויות',oPrefer:'כששורה מופיעה בשתי הרשימות, להשתמש בערכים מתוך',oFill:'השלמת תאים ריקים מהרשימה השנייה',oPreferHelp:'אפשר גם לבחור ערך לתא בודד בלחיצה על שורה בתוצאה.',
@@ -131,6 +132,7 @@ backup:'גיבוי',restore:'שחזור',clearData:'מחיקת כל הנתוני
 backedUp:(a,b)=>`גובו ${a} רשימות ו־${b} מתכונים.`,restored:(a,b,c)=>`שוחזרו ${a} רשימות ו־${b} מתכונים${c?` (‏${c} דולגו: כבר מעודכנים או לא תקינים)`:''}.`,notBackup:'הקובץ הזה אינו גיבוי של הכלי.',
 useSaved:'שימוש ברשימה שמורה',saveToLibrary:'שמירה בספרייה',saveToLibraryHelp:'שומרים את הרשימה הזאת ברשימות השמורות כדי להשוות או לאחד אותה בהמשך.',openCombine:'פתיחת איחוד',pickTitle:'שימוש ברשימה שמורה',noSaved:'עדיין אין רשימות שמורות. שמרו אחת מתצוגת האיחוד או מכרטיס רשימה.',
 cancel:'ביטול',save:'שמירה',saveAsList:'שמירה כרשימה',
+columnsBtn:(n,m)=>`עמודות (${n}/${m})`,colsTitle:'בחירת עמודות',colsHelp:'רק עמודות מסומנות מופיעות בטבלה, בהורדות ובהעתקות. אפשר להסתיר גם את עמודת ההתאמה. חייבת להישאר לפחות עמודה אחת.',colsAll:'הכול',colsNone:'כלום',colsOnlyFrom:'רק מתוך',colsKey:'עמודת התאמה',colsBoth:'בשתי הרשימות',colsOnlyA:'רק ברשימה A',colsOnlyB:'רק ברשימה B',colsSeveral:'בכמה רשימות',colsOnlyList:n=>`רק ב${n}`,colsApply:'החלה',colsCount:(n,m)=>`נבחרו ${n} מתוך ${m} עמודות`,
 footTitle:'פרטיות ומגבלות',
 footBody:'הטבלאות מעובדות מקומית בדפדפן ואינן מועלות לשרת. הדבקה וקובצי CSV ו־TSV פועלים ללא אינטרנט. ייבוא וייצוא Excel דורשים הורדת ספריית SheetJS בשימוש הראשון. נשמרים נתוני הגיליון שנבחר, ללא עיצוב, נוסחאות או גיליונות נוספים. בייצוא Excel הערכים נשמרים כטקסט. CSV אינו שומר סוגי עמודות, ותוכנות גיליון עלולות לפרש נוסחאות. לא ניתן לשחזר ספרות שכבר אבדו עקב עיגול. רשימות ומתכונים שנשמרים נשמרים בדפדפן הזה, במכשיר הזה בלבד, ואינם מועלים; גבו אותם מתצוגת האיחוד, כי ניקוי נתוני האתר בדפדפן מוחק אותם.'
 }};
