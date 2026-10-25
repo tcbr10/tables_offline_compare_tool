@@ -356,3 +356,9 @@ body.drag-chip .dh .h-remove,body.drag-step .dh .h-remove{display:inline}
 .cquick{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .sdot{width:9px;height:9px;border-radius:50%;flex:none}
 #colBtn,#cColBtn{font-variant-numeric:tabular-nums}
+
+/* header row controls */
+.hdrextras,.hdrbox{display:flex;flex-direction:column;gap:6px}
+.hdrbox{align-items:flex-start}
+.skipnote{font-size:12px;color:var(--mute);line-height:1.5}
+.hdrextras{margin-top:8px}

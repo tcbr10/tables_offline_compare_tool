@@ -32,7 +32,8 @@ function cleanList(v){
  for(const r of v.rows){if(!Array.isArray(r))return null;rows.push(r.map(x=>String(x??'')));}
  const kc=v.keyCols&&typeof v.keyCols==='object'?v.keyCols:{},col=x=>Number.isInteger(x)&&x>=0&&x<headers.length?x:null;
  const now=Date.now();
- return {id:v.id,name:v.name.slice(0,120)||'List',color:Number.isInteger(v.color)?v.color%6:0,headers,rows,keyCols:{phone:col(kc.phone),id:col(kc.id),text:col(kc.text)},created:Number(v.created)||now,updated:Number(v.updated)||now};
+ const tp=v.template&&typeof v.template==='object'?v.template:null,template=tp?{hr:Number.isInteger(tp.hr)&&tp.hr>=-1&&tp.hr<50?tp.hr:0,manual:!!tp.manual,addDate:!!tp.addDate,dateLabel:isStr(tp.dateLabel)?tp.dateLabel.slice(0,60):''}:null;
+ return {id:v.id,name:v.name.slice(0,120)||'List',template,date:isStr(v.date)?v.date.slice(0,120):'',color:Number.isInteger(v.color)?v.color%6:0,headers,rows,keyCols:{phone:col(kc.phone),id:col(kc.id),text:col(kc.text)},created:Number(v.created)||now,updated:Number(v.updated)||now};
 }
 function cleanRecipe(v){
  if(!v||!isStr(v.id)||!isStr(v.name)||!Array.isArray(v.steps))return null;

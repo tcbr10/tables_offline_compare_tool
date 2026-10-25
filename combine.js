@@ -38,8 +38,8 @@ async function putList(l,keepUpdated){
  const v=await store.saveList(l,{keepUpdated});
  const i=LIB.findIndex(x=>x.id===v.id);if(i<0)LIB.push(v);else LIB[i]=v;return v;
 }
-async function addList({name,headers,rows,keyCols}){
- const v=await putList({id:store.newId('l'),name,color:nextColor(),headers,rows,keyCols,created:Date.now()});
+async function addList({name,headers,rows,keyCols,template,date}){
+ const v=await putList({id:store.newId('l'),name,color:nextColor(),headers,rows,keyCols,template:template||null,date:date||'',created:Date.now()});
  C.flash=v.id;setTimeout(()=>{C.flash=null;},1400);
  if(!C.steps.length||(C.steps[0].type==='start'&&!C.steps[0].lists.length))C.steps=[{type:'start',lists:[v.id]},...C.steps.slice(1)];
  return v;
@@ -55,7 +55,7 @@ function renderLib(){
   const sel=h('select',{'aria-label':t('matchOn')+': '+l.name,onchange:async e=>{const v=+e.target.value;l.keyCols={...l.keyCols,[C.mode]:v<0?null:v};await putList(l,true);changed();}},c==null&&h('option',{value:'-1',selected:true,text:t('noneCol')}),l.headers.map((x,i)=>h('option',{value:i,selected:i===c,text:(i+1)+'. '+x})));
   box.append(h('div',{class:'lcard'+(C.flash===l.id?' flash':''),style:'--c:'+colorOf(l),'data-drag':'list','data-id':l.id},
    h('span',{class:'grip',title:t('dragHint')},ico('grip')),h('span',{class:'dot'}),
-   h('div',{style:'min-width:0'},h('b',{text:l.name}),h('span',{class:'m',text:t('rows',l.rows.length)+' · '+t('updated',when(l))})),
+   h('div',{style:'min-width:0'},h('b',{text:l.name}),h('span',{class:'m',text:t('rows',l.rows.length)+' · '+t('updated',when(l))+(l.date?' · '+t('reportOn',l.date):'')})),
    h('div',{class:'acts'},
     h('button',{type:'button',title:t('update'),'aria-label':t('update')+': '+l.name,onclick:()=>updateDialog(l)},ico('refresh')),
     h('button',{type:'button',title:t('rename'),'aria-label':t('rename')+': '+l.name,onclick:()=>renameDialog(l)},ico('pencil')),
@@ -109,28 +109,34 @@ async function restore(file){
 }
 $('restoreFile').onchange=e=>{if(e.target.files[0])restore(e.target.files[0]);};
 
-/* The import dialog serves Add list and Update list: a file or pasted cells become headers + rows, with the match columns detected. */
+/* The import dialog serves Add list and Update list: a file or pasted cells become headers + rows. The header row is detected (a date or title line above the column titles is skipped), can be changed, and is remembered with the list so the next file in the same template loads the same way. */
 function importDialog({title,existing,file,onDone,okLabel}){
- let rows=null,book=null,sheet='',data=null;
+ const tpl=existing&&existing.template;
+ const st={raw:null,hr:0,hrAuto:true,addDate:!!(tpl&&tpl.addDate),dateLabel:tpl&&tpl.dateLabel||''};
+ let book=null,sheet='',data=null,m;
  const nameIn=existing?null:h('input',{type:'text',id:'imp-name',value:''});
  const fileIn=h('input',{type:'file',accept:'.xlsx,.xls,.xlsm,.xlsb,.csv,.tsv,.txt',hidden:true});
  const paste=h('textarea',{class:'paste',id:'imp-paste',spellcheck:'false',placeholder:t('pastePh'),'aria-label':t('pastedName')});
- const info=h('div',{class:'imp-info',role:'status'}),sheetBox=h('div'),hdrBox=h('div');
- let m;
+ const info=h('div',{class:'imp-info',role:'status'}),sheetBox=h('div'),hdrBox=h('div',{class:'hdrbox'});
+ function setRaw(rows){
+  st.raw=rows.filter(r=>r.some(v=>String(v??'').trim())).map(r=>r.map(v=>String(v??'')));
+  if(tpl&&tpl.manual){st.hr=Math.max(-1,Math.min(tpl.hr,st.raw.length-1));st.hrAuto=false;}
+  else{st.hr=E.headerRow(st.raw);st.hrAuto=true;}
+  analyze();
+ }
  function analyze(){
-  if(!rows||!rows.length){data=null;info.replaceChildren(h('span',{class:'hint',text:t('impNone')}));if(m)m.ok().disabled=true;return;}
-  const raw=rows.filter(r=>r.some(v=>String(v??'').trim())).map(r=>r.map(v=>String(v??'')));
-  const has=hdrBox._has??E.headerGuess(raw);hdrBox._has=has;
-  const headers=E.headers(raw,has),body=raw.slice(has?1:0),keyCols=E.detectKeyCols(headers,body);
-  data={headers,rows:body,keyCols};
-  hdrBox.replaceChildren(h('label',{class:'check'},h('input',{type:'checkbox',checked:has,onchange:e=>{hdrBox._has=e.target.checked;analyze();}}),h('span',{text:t('header')})));
+  if(!st.raw||!st.raw.length){data=null;hdrBox.replaceChildren();info.replaceChildren(h('span',{class:'hint',text:t('impNone')}));if(m)m.ok().disabled=true;return;}
+  const tb=E.tableFrom(st.raw,st.hr,{addDate:st.addDate,dateLabel:st.dateLabel}),headers=tb.headers,body=tb.data,keyCols=E.detectKeyCols(headers,body);
+  data={headers,rows:body,keyCols,date:tb.date,template:{hr:st.hr,manual:!st.hrAuto,addDate:st.addDate&&!!tb.date,dateLabel:st.dateLabel}};
+  const hc=App.headerControls(st,analyze,'imp');
+  hdrBox.replaceChildren(hc.field,...(hc.extras?[hc.extras]:[]));
   const found=[['phone',t('mPhone')],['id',t('mId')]].filter(([k])=>keyCols[k]!=null).map(([k,n])=>n+' → '+headers[keyCols[k]]);
   const parts=[h('div',{text:t('rowsCols',body.length,headers.length)}),h('div',{class:found.length?'':'warn-text',text:found.length?t('impFound',found.join(' · ')):t('impNoKey')})];
   if(existing){
    const same=JSON.stringify(headers)===JSON.stringify(existing.headers),kc=same?existing.keyCols:keyCols;
    const mode=kc[C.mode]!=null?C.mode:kc.phone!=null?'phone':kc.id!=null?'id':'text';
-   const keysOf=(hd,rs,c)=>{const s=new Set();if(c==null)return s;for(const r of rs)for(const k of E.rowKeys(r[c],mode))s.add(k);return s;};
-   const oldK=keysOf(existing.headers,existing.rows,existing.keyCols[mode]),newK=keysOf(headers,body,kc[mode]);
+   const keysOf=(rs,c)=>{const set=new Set();if(c==null)return set;for(const r of rs)for(const k of E.rowKeys(r[c],mode))set.add(k);return set;};
+   const oldK=keysOf(existing.rows,existing.keyCols[mode]),newK=keysOf(body,kc[mode]);
    let added=0,same2=0;for(const k of newK)oldK.has(k)?same2++:added++;
    parts.push(h('div',{class:'diff'},h('b',{text:t('diffTitle',modeName(mode))}),h('span',{class:'chip ok',text:'+'+fmt(added)+' '+t('diffNew')}),h('span',{class:'chip warn',text:'−'+fmt(oldK.size-same2)+' '+t('diffGone')}),h('span',{class:'chip',text:fmt(same2)+' '+t('diffSame')})));
    if(!same)parts.push(h('div',{class:'warnbox',text:t('diffCols')}));
@@ -138,18 +144,17 @@ function importDialog({title,existing,file,onDone,okLabel}){
   }
   info.replaceChildren(...parts);if(m)m.ok().disabled=false;
  }
- function setSheet(name){sheet=name;rows=App.sheetRows(book,name);hdrBox._has=undefined;analyze();}
  async function readIt(f){
   info.replaceChildren(h('span',{class:'hint',text:t('loading',f.name)}));
   try{
-   const r=await App.readFile(f);book=r.book;rows=r.rows;sheet=r.sheet;hdrBox._has=undefined;
+   const r=await App.readFile(f);book=r.book;sheet=r.sheet;
    if(nameIn&&!nameIn.value.trim())nameIn.value=f.name.replace(/\.[^.]+$/,'');
-   sheetBox.replaceChildren(r.sheets.length>1?field(t('sheet'),h('select',{id:'imp-sheet',onchange:e=>setSheet(e.target.value)},r.sheets.map(n=>h('option',{value:n,selected:n===sheet,text:n})))):'');
-   analyze();
-  }catch(e){rows=null;info.replaceChildren(h('div',{class:'warnbox',text:e.key?t(e.key):e.message}));if(m)m.ok().disabled=true;}
+   sheetBox.replaceChildren(r.sheets.length>1?field(t('sheet'),h('select',{id:'imp-sheet',onchange:e=>{sheet=e.target.value;setRaw(App.sheetRows(book,sheet));}},r.sheets.map(n=>h('option',{value:n,selected:n===sheet,text:n})))):'');
+   setRaw(r.rows);
+  }catch(e){st.raw=null;info.replaceChildren(h('div',{class:'warnbox',text:e.key?t(e.key):e.message}));if(m)m.ok().disabled=true;}
  }
  fileIn.onchange=()=>{if(fileIn.files[0])readIt(fileIn.files[0]);};
- let timer;paste.addEventListener('input',()=>{clearTimeout(timer);timer=setTimeout(()=>{if(!paste.value.trim())return;book=null;sheetBox.replaceChildren();rows=E.parseText(paste.value);hdrBox._has=undefined;analyze();},250);});
+ let timer;paste.addEventListener('input',()=>{clearTimeout(timer);timer=setTimeout(()=>{if(!paste.value.trim())return;book=null;sheetBox.replaceChildren();setRaw(E.parseText(paste.value));},250);});
  const body=h('div',{style:'display:flex;flex-direction:column;gap:12px'},
   nameIn&&field(t('mName'),nameIn),
   h('div',{style:'display:flex;gap:8px;align-items:center;flex-wrap:wrap'},h('button',{class:'sm',type:'button',onclick:()=>fileIn.click()},ico('upload'),t('importFile')),fileIn,h('span',{class:'hint',text:t('impOr')})),
@@ -167,7 +172,7 @@ function addDialog(file){
 }
 function updateDialog(l){
  importDialog({title:t('updateTitle',l.name),existing:l,okLabel:t('updateOk'),onDone:async d=>{
-  const old=l.rows.length;l.headers=d.headers;l.rows=d.rows;l.keyCols=d.keyCols;await putList(l);
+  const old=l.rows.length;l.headers=d.headers;l.rows=d.rows;l.keyCols=d.keyCols;l.template=d.template;l.date=d.date;await putList(l);
   C.flash=l.id;setTimeout(()=>{C.flash=null;},1400);changed();toast(t('updatedMsg',l.name,fmt(d.rows.length),fmt(old)));
  }});
 }
@@ -415,12 +420,12 @@ window.Lib={
   if(!LIB.length){toast(t('noSaved'));return;}
   const m=modal(t('pickTitle'),h('div',{class:'lib'},LIB.map(l=>h('button',{type:'button',class:'pickrow',style:'--c:'+colorOf(l),onclick:()=>{App.closeModal();cb(l);}},h('span',{class:'dot'}),h('b',{text:l.name}),h('span',{class:'m',text:t('rows',l.rows.length)})))),null,null);
  },
- saveFrom({name,headers,rows,key,mode}){
+ saveFrom({name,headers,rows,key,mode,template,date}){
   const nameIn=h('input',{type:'text',id:'sv-name',value:name});
   modal(t('saveToLibrary'),h('div',{style:'display:flex;flex-direction:column;gap:10px'},field(t('mName'),nameIn),h('p',{class:'hint',text:t('saveToLibraryHelp')})),async()=>{
    const v=nameIn.value.trim();if(!v){nameIn.focus();return false;}
    const keyCols=E.detectKeyCols(headers,rows);if(key!=null)keyCols[mode]=key;
-   const l=await addList({name:v,headers:[...headers],rows:rows.map(r=>[...r]),keyCols});changed();
+   const l=await addList({name:v,headers:[...headers],rows:rows.map(r=>[...r]),keyCols,template,date});changed();
    toast(t('savedList',l.name),{label:t('openCombine'),run:()=>App.setView('combine')});
   });
  }

@@ -166,3 +166,38 @@ test('combine columns report which lists contribute them',()=>{
   assert.deepEqual(by.Name,['leads','sign']);assert.deepEqual(by.City,['leads']);assert.deepEqual(by.Event,['sign']);
   assert.deepEqual(r.columns.find(c=>c.key).lists,['leads','sign']);
 });
+
+/* ---------- header row ---------- */
+test('headerRow skips a date or title line above the column titles',()=>{
+  const body=[['A','052-607-0482','x'],['B','054-111-2222','y'],['C','0506998645','z']];
+  assert.equal(E.headerRow([['15/10/2026'],['Name','Phone','City'],...body]),1);
+  assert.equal(E.headerRow([['דוח מתאריך','15/10/26'],['Name','Phone','City','ID'],['A','052-607-0482','x','1'],['B','054-111-2222','y','2']]),1);
+  assert.equal(E.headerRow([['Report','','','','date','15/10/26'],['Name','Phone','City','ID','x','y'],['A','052-607-0482','x','1','2','3'],['B','054-111-2222','y','1','2','3']]),1);
+  assert.equal(E.headerRow([['Title'],['2026'],['Name','Phone','City'],...body]),2);      // two preamble lines
+});
+test('headerRow leaves ordinary tables alone',()=>{
+  assert.equal(E.headerRow([['Name','Phone'],['A','052-607-0482'],['B','054-111-2222'],['C','0506998645']]),0);
+  assert.equal(E.headerRow([['052-607-0482'],['054-111-2222'],['0506998645']]),-1);      // no titles at all
+  assert.equal(E.headerRow([['','','','','','שם','טלפון'],['','','','','','a','0526070482'],['','','','','','b','0526070483']]),0);
+  assert.equal(E.headerRow([]),-1);
+});
+test('tableFrom skips the lines above the header and can add the date as a column',()=>{
+  const raw=[['דוח 15/10/2026'],['Name','Phone'],['A','1'],['B','2']];
+  const t=E.tableFrom(raw,1);
+  assert.deepEqual(t.headers,['Name','Phone']);assert.equal(t.data.length,2);assert.equal(t.date,'15/10/2026');assert.equal(t.skipped,1);
+  const d=E.tableFrom(raw,1,{addDate:true,dateLabel:'Report date'});
+  assert.deepEqual(d.headers,['Name','Phone','Report date']);assert.deepEqual(d.data[0],['A','1','15/10/2026']);
+  assert.deepEqual(E.tableFrom(raw,-1).headers,['Column 1','Column 2']);                // no header row: everything is data
+  assert.equal(E.tableFrom(raw,-1).data.length,4);
+});
+test('extractDate finds dates in several formats and falls back to the text',()=>{
+  assert.equal(E.extractDate([['Report','2026-10-15']]),'2026-10-15');
+  assert.equal(E.extractDate([['15.10.26']]),'15.10.26');
+  assert.equal(E.extractDate([['Monthly report']]),'Monthly report');
+  assert.equal(E.extractDate([]),'');
+});
+test('tableFrom drops trailing empty columns',()=>{
+  const raw=[['15/10/2026','','',''],['Name','Phone','',''],['A','1','',''],['B','2','','']];
+  const t=E.tableFrom(raw,1);
+  assert.deepEqual(t.headers,['Name','Phone']);assert.deepEqual(t.data[0],['A','1']);
+});

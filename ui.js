@@ -24,20 +24,20 @@ const SAMPLE={
 };
 
 /* ---------- loading ---------- */
-function rebuild(id){const s=S[id];s.headers=E.headers(s.raw,s.header);s.data=s.raw.slice(s.header?1:0);s.key=Math.min(s.key,Math.max(0,s.headers.length-1));}
+function rebuild(id){const s=S[id],tb=E.tableFrom(s.raw,s.hr,{addDate:s.addDate,dateLabel:s.dateLabel});s.headers=tb.headers;s.data=tb.data;s.date=tb.date;s.skippedText=tb.skippedText;s.header=s.hr>=0;s.key=Math.min(s.key,Math.max(0,s.headers.length-1));}
 function resetDecisions(){V.over={};V.links=[];V.ignored=new Set();V.open=null;if(V.panel==='inspect')V.panel=null;}
 function autoKeys(){E.autoKeys(S,V.mode);}
 function load(id,rows,name){
  const s=S[id];
  s.raw=rows.filter(r=>r.some(v=>String(v??'').trim())).map(r=>r.map(v=>String(v??'')));
- s.header=E.headerGuess(s.raw);s.auto=true;if(name!==undefined)s.name=name;
+ s.hr=E.headerRow(s.raw);s.hrAuto=true;s.addDate=false;s.dateLabel='';s.auto=true;if(name!==undefined)s.name=name;
  resetDecisions();rebuild(id);autoKeys();refresh();
 }
 function loadSaved(id,l){
  const s=S[id];s.book=null;load(id,[l.headers,...l.rows],l.name);
- s.header=true;rebuild(id);const k=l.keyCols[V.mode]??l.keyCols.phone??l.keyCols.id??0;s.key=Math.min(k,s.headers.length-1);s.auto=false;refresh();
+ s.hr=0;s.hrAuto=false;rebuild(id);const k=l.keyCols[V.mode]??l.keyCols.phone??l.keyCols.id??0;s.key=Math.min(k,s.headers.length-1);s.auto=false;refresh();
 }
-function saveToLibrary(id){const s=S[id];Lib.saveFrom({name:s.name&&!s.pasted?s.name.replace(/\.[^.]+$/,''):t('list'+id),headers:s.headers,rows:s.data,key:s.key,mode:V.mode});}
+function saveToLibrary(id){const s=S[id];Lib.saveFrom({name:s.name&&!s.pasted?s.name.replace(/\.[^.]+$/,''):t('list'+id),headers:s.headers,rows:s.data,key:s.key,mode:V.mode,template:{hr:s.hr,manual:!s.hrAuto,addDate:s.addDate,dateLabel:s.dateLabel},date:s.date});}
 function clearList(id){S[id]=E.fresh();resetDecisions();refresh();}
 function loadSample(id){const x=SAMPLE[id];S[id].book=null;load(id,x.rows.map(r=>[...r]),x.name);}
 
@@ -49,6 +49,16 @@ function excel(){
   const timer=setTimeout(()=>{s.remove();fail();},25000);
   s.onload=()=>{clearTimeout(timer);window.XLSX?resolve(window.XLSX):fail();};s.onerror=()=>{clearTimeout(timer);fail();};document.head.append(s);});
  return excelPromise;
+}
+/* Header-row controls shared by the compare cards and the import dialog. st: {raw,hr,hrAuto,addDate,dateLabel}. */
+function headerControls(st,onChange,key){
+ const n=Math.min(st.raw.length,10),tb=E.tableFrom(st.raw,st.hr);
+ const sel=h('select',{id:'hr-'+key,'aria-label':t('headerRow'),title:t('headerRowHelp'),onchange:e=>{st.hr=+e.target.value;st.hrAuto=false;st.addDate=false;onChange();}},
+  h('option',{value:-1,selected:st.hr<0,text:t('noHeaderRow')}),Array.from({length:n},(_,i)=>h('option',{value:i,selected:st.hr===i,text:t('rowN',i+1)})));
+ const extras=[];
+ if(st.hr>0)extras.push(h('div',{class:'skipnote',text:(st.hrAuto?t('headerAuto',st.hr+1)+' ':'')+t('skippedAbove',st.hr,tb.skippedText)}));
+ if(st.hr>0&&tb.date)extras.push(h('label',{class:'check'},h('input',{type:'checkbox',id:'date-'+key,checked:st.addDate,onchange:e=>{st.addDate=e.target.checked;st.dateLabel=t('reportDate');onChange();}}),h('span',{text:t('addDateCol',tb.date)})));
+ return {field:h('label',{class:'field'},h('span',{class:'cap',text:t('headerRow')}),sel),extras:extras.length?h('div',{class:'hdrextras'},extras):null};
 }
 function readSheet(id){const s=S[id];load(id,window.XLSX.utils.sheet_to_json(s.book.Sheets[s.sheet],{header:1,defval:'',raw:false,blankrows:false}));}
 async function importFile(id,file){
@@ -134,7 +144,7 @@ function listCard(id){
  }
  const hs=s.headers,k=s.key;
  const keySel=h('select',{id:'key-'+id,'aria-label':t('matchOn'),onchange:e=>{s.key=+e.target.value;s.auto=false;refresh();}},hs.map((x,c)=>h('option',{value:c,selected:c===k,text:(c+1)+'. '+x})));
- const hdr=h('input',{type:'checkbox',id:'header-'+id,checked:s.header,onchange:e=>{s.header=e.target.checked;rebuild(id);autoKeys();refresh();}});
+ const hc=headerControls(s,()=>{rebuild(id);autoKeys();refresh();},id);
  const sheetSel=s.book&&h('label',{class:'field'},h('span',{class:'cap',text:t('sheet')}),h('select',{id:'sheet-'+id,onchange:e=>{s.sheet=e.target.value;readSheet(id);}},s.book.SheetNames.map(n=>h('option',{value:n,selected:n===s.sheet,text:n}))));
  const chips=h('div',{class:'chips'});
  if(s.auto&&s.data.length)chips.append(h('span',{class:'chip ok',text:t('auto')}));
@@ -151,7 +161,7 @@ function listCard(id){
  const excl=s.invalid.length?h('details',{class:'excl'},h('summary',{text:t('showExcluded',s.invalid.length)}),h('pre',{text:s.invalid.slice(0,100).map(v=>t('dataRow',v.i+1,v.value)).join('\n')+(s.invalid.length>100?'\n'+t('first100'):'')})):null;
  box.append(...[
   head(t('rowsCols',s.data.length,hs.length),h('span',{class:'head-acts'},window.Lib?h('button',{class:'ghost sm',type:'button',id:'tolib-'+id,title:t('saveToLibraryHelp'),onclick:()=>saveToLibrary(id),text:t('saveToLibrary')}):null,h('button',{class:'ghost sm',type:'button',onclick:()=>clearList(id),text:t('remove')}))),
-  h('div',{class:'fields'},h('label',{class:'field'},h('span',{class:'cap',text:t('matchOn')}),keySel),sheetSel,h('label',{class:'check'},hdr,h('span',{text:t('header')}))),
+  h('div',{class:'fields'},h('label',{class:'field'},h('span',{class:'cap',text:t('matchOn')}),keySel),sheetSel,hc.field),hc.extras,
   chips,warn,excl,msgNode(s),
   h('details',{class:'peek'},h('summary',{text:t('peek')}),h('div',{class:'mini'},mini))].filter(Boolean));
 }
@@ -352,7 +362,7 @@ $('optBtn').onclick=()=>openPanel('options');
 $('colBtn').onclick=openColumns;
 $('swapBtn').onclick=swapLists;
 $('resetBtn').onclick=resetAll;
-$('sampleBtn').onclick=()=>{for(const id of ['A','B'])if(!isLoaded(id)){S[id].book=null;const x=SAMPLE[id];S[id].raw=x.rows.map(r=>[...r]);S[id].header=true;S[id].auto=true;S[id].name=x.name;rebuild(id);}resetDecisions();autoKeys();refresh();};
+$('sampleBtn').onclick=()=>{for(const id of ['A','B'])if(!isLoaded(id)){S[id].book=null;const x=SAMPLE[id];S[id].raw=x.rows.map(r=>[...r]);S[id].hr=0;S[id].hrAuto=true;S[id].auto=true;S[id].name=x.name;rebuild(id);}resetDecisions();autoKeys();refresh();};
 $('search').oninput=e=>{V.q=e.target.value;if(bothLoaded())grid();};
 $('expMain').onclick=()=>doExport('xlsx');
 $('expMore').onclick=e=>{e.stopPropagation();const m=$('expMenu');m.hidden=!m.hidden;$('expMore').setAttribute('aria-expanded',String(!m.hidden));};
@@ -381,7 +391,7 @@ document.addEventListener('keydown',e=>{
  if(e.key==='/'&&view==='compare'&&bothLoaded()&&!/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)){e.preventDefault();$('search').focus();}
 });
 
-window.App={pickColumns,E,$,h,ico,t,getLang:()=>lang,toast,modal,closeModal,excel,readFile,sheetRows,exportData,onRender:f=>hooks.push(f),render,setView,getView:()=>view,refreshCompare:refresh,
+window.App={headerControls,pickColumns,E,$,h,ico,t,getLang:()=>lang,toast,modal,closeModal,excel,readFile,sheetRows,exportData,onRender:f=>hooks.push(f),render,setView,getView:()=>view,refreshCompare:refresh,
  onLang:null};
 refresh();
 })();

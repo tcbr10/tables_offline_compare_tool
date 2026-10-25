@@ -1,7 +1,7 @@
 /* Matching engine: pure functions with no DOM access. Loaded as a classic script in the browser (window.Engine) and with require() in the node tests. */
 (function(root){
 'use strict';
-const fresh=()=>({raw:[],headers:[],data:[],key:0,auto:true,header:false,book:null,sheet:'',name:'',index:new Map(),groups:new Map(),invalid:[],duplicates:0});
+const fresh=()=>({raw:[],headers:[],data:[],key:0,auto:true,header:false,hr:-1,hrAuto:true,addDate:false,dateLabel:'',date:'',skippedText:'',book:null,sheet:'',name:'',index:new Map(),groups:new Map(),invalid:[],duplicates:0});
 const INVISIBLE=/[\u00AD\u034F\u061C\u115F\u1160\u17B4\u17B5\u180E\u200B-\u200F\u202A-\u202E\u2060-\u206F\u3164\uFE00-\uFE0F\uFEFF\uFFA0]/g,HEB_MARKS=/[\u0591-\u05BD\u05BF\u05C1\u05C2\u05C4\u05C5\u05C7]/g,SPACES=/[\s\u00A0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000]+/g;
 function clean(v){let s=String(v??'');try{s=s.normalize('NFKC');}catch(e){}return s.replace(INVISIBLE,'').replace(HEB_MARKS,'').replace(/[\u0660-\u0669]/g,c=>String(c.charCodeAt(0)-0x660)).replace(/[\u06F0-\u06F9]/g,c=>String(c.charCodeAt(0)-0x6F0)).replace(/[\u2010-\u2015\u2212\u05BE]/g,'-').replace(/[\u2018\u2019\u201B\u02BC\u05F3`\u00B4]/g,"'").replace(/[\u201C\u201D\u201E\u201F\u05F4]/g,'"').replace(SPACES,' ').trim();}
 function phone(v){let s=clean(v);if(/^=".*"$/.test(s))s=s.slice(2,-1);s=s.replace(/^'/,'');if(/^[\d.]+e\+?\d+$/i.test(s)){const n=Number(s);if(!Number.isSafeInteger(n)||n<0)return null;s=String(n);}if(!s||/[^\d+\s().-]/.test(s))return null;s=s.replace(/[\s().-]/g,'');if(!/^\+?\d+$/.test(s))return null;const explicit=s.startsWith('+')||s.startsWith('00'),d=s.startsWith('+')?s.slice(1):s.startsWith('00')?s.slice(2):s;let n;if(d.startsWith('972')&&(explicit||[11,12,13].includes(d.length))){n=d.slice(3).replace(/^0/,'');return /^(?:[57]\d{8}|[23489]\d{7})$/.test(n)?'+972'+n:null;}if(explicit)return /^[1-9]\d{6,14}$/.test(d)?'+'+d:null;n=d.replace(/^0/,'');return /^(?:[57]\d{8}|[23489]\d{7})$/.test(n)?'+972'+n:null;}
@@ -18,7 +18,34 @@ const ph=s=>/phone|mobile|telephone|cellular|טלפון|נייד|פלאפון/i.
 const HEADER_WORDS=/^(name|full name|first name|last name|email|e-mail|id|address|city|date|number|status|שם|שם מלא|שם פרטי|שם משפחה|אימייל|מייל|דוא"ל|כתובת|עיר|תאריך|מספר|סטטוס|ת"ז|ת\.ז\.?)$/i;
 function kind(v){const s=clean(v);return !s?'':/\d/.test(s)&&/^[\d\s+().,\/:'"-]+$/.test(s)?'n':'t';}
 function headerGuess(raw){const top=raw[0],body=raw.slice(1,51);if(!top)return false;if(top.some(v=>ph(v)||HEADER_WORDS.test(clean(v))))return true;/* A text cell above a mostly numeric column (phones, dates, IDs) is a column title. */return top.some((v,c)=>{if(kind(v)!=='t')return false;let n=0,t=0;for(const r of body){const k=kind(r[c]);if(k==='n')n++;else if(k==='t')t++;}return n>=3&&n>2*t;});}
-function headers(raw,has){const width=raw.reduce((m,r)=>Math.max(m,r.length),0),used=new Set(),out=[];for(let i=0;i<width;i++){const base=has?(clean(raw[0]?.[i])||'Column '+(i+1)):'Column '+(i+1);let label=base,j=2;while(used.has(label.toLowerCase()))label=base+' ('+j+++')';used.add(label.toLowerCase());out.push(label);}return out;}
+function headers(raw,has){const hr=has===true?0:typeof has==='number'?has:-1,width=raw.reduce((m,r)=>Math.max(m,r.length),0),used=new Set(),out=[];for(let i=0;i<width;i++){const base=hr>=0?(clean(raw[hr]?.[i])||'Column '+(i+1)):'Column '+(i+1);let label=base,j=2;while(used.has(label.toLowerCase()))label=base+' ('+j+++')';used.add(label.toLowerCase());out.push(label);}return out;}
+/* ---------- header row (templates with a date or title line above the column titles) ---------- */
+const filled=r=>r.reduce((n,v)=>n+(clean(v)?1:0),0);
+/* Index of the row holding the column titles, or -1 when the table has no title row. Lines above it that fill at most half the table's width (a date, a report name) and are followed by a fuller line are skipped. Blank rows are not counted: the index is among non-empty rows. */
+function headerRow(raw){
+ const head=raw.slice(0,60).map(filled).filter(n=>n>0).sort((a,b)=>a-b),width=head.length?head[Math.floor(head.length/2)]:0;
+ const pre=r=>{const f=filled(r);return f>0&&((f===1&&width>=2)||(f>=2&&f*2<=width));};
+ let p=0;
+ while(p<Math.min(raw.length-1,9)&&pre(raw[p]))p++;
+ if(p>0&&filled(raw[p])<=filled(raw[p-1]))p=0;
+ return p>0||headerGuess(raw)?p:-1;
+}
+const DATE_RE=/\b\d{1,2}[./-]\d{1,2}[./-]\d{2,4}\b|\b\d{4}-\d{2}-\d{2}\b/;
+const skippedText=rows=>rows.map(r=>r.map(clean).filter(Boolean).join(' · ')).filter(Boolean).join(' | ');
+/* The date found in the skipped lines (or, failing that, the first skipped line as text). */
+function extractDate(rows){const text=skippedText(rows),m=text.match(DATE_RE);return m?m[0]:(rows.length?skippedText(rows.slice(0,1)):'');}
+/* headers + data rows for a header row index, optionally adding the skipped date as a last column. */
+function tableFrom(raw,hr,opts){
+ opts=opts||{};
+ const skipped=hr>0?raw.slice(0,hr):[],date=extractDate(skipped),start=Math.max(hr,0);
+ /* trailing columns with nothing in them (a wide date line, phantom Excel columns) are dropped */
+ let width=0;for(let i=start;i<raw.length;i++)for(let c=raw[i].length-1;c>=width;c--)if(clean(raw[i][c])){width=c+1;break;}
+ const body=raw.slice(start).map(r=>r.slice(0,width)),hs=headers(body,hr>=0?0:-1);
+ let data=hr>=0?body.slice(1):body;const out=[...hs];
+ if(opts.addDate&&date){out.push(opts.dateLabel||'Report date');data=data.map(r=>{const x=r.slice();while(x.length<hs.length)x.push('');x.push(date);return x;});}
+ return {headers:out,data,date,skippedText:skippedText(skipped),skipped:skipped.length};
+}
+
 /* Rank columns as comparison keys by DISTINCT values, so a column repeating one number (e.g. a destination line) never wins. */
 const ID_HEADER=/(^|[^a-z])(id|identity|national id)([^a-z]|$)|ת\.?ז|תז|זהות/i;
 function rankKeys(s,mode){const sample=s.data.slice(0,500);return s.headers.map((h,c)=>{const nums=new Set(),texts=new Set();let filled=0;for(const r of sample){const t=key(r[c],'text');if(t===null)continue;filled++;texts.add(t);for(const p of (mode==='id'?ids(t):phones(t)))nums.add(p);}const isTarget=nums.size>1,keyLike=texts.size>1&&texts.size>=filled*0.5,hint=s.header&&(mode==='id'?ID_HEADER.test(String(h)):ph(h));return {c,isTarget,keyLike,score:isTarget?1e6+nums.size*(hint?2:1):keyLike?1e3+texts.size:texts.size};}).sort((x,y)=>y.score-x.score||x.c-y.c);}
@@ -168,6 +195,6 @@ function combine(lists,steps,mode){
  return {columns:cols,rows:[...entries].map(out),stages,removed:removed.map(x=>({...out(x.e),by:x.by,step:x.step})),skipped};
 }
 
-const api={listKeys,usableCount,detectKeyCols,combine,fresh,clean,phone,phones,ids,idCheck,key,rowKeys,parse,parseText,headerGuess,headers,rankKeys,autoKeys,nearMatches,linker,buildIndex,analyze,compute,opFor};
+const api={headerRow,tableFrom,extractDate,listKeys,usableCount,detectKeyCols,combine,fresh,clean,phone,phones,ids,idCheck,key,rowKeys,parse,parseText,headerGuess,headers,rankKeys,autoKeys,nearMatches,linker,buildIndex,analyze,compute,opFor};
 if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.Engine=api;
 })(typeof window!=='undefined'?window:globalThis);
