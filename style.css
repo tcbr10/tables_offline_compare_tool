@@ -362,3 +362,6 @@ body.drag-chip .dh .h-remove,body.drag-step .dh .h-remove{display:inline}
 .hdrbox{align-items:flex-start}
 .skipnote{font-size:12px;color:var(--mute);line-height:1.5}
 .hdrextras{margin-top:8px}
+
+.sheet.over{outline:2px dashed var(--accent-text);outline-offset:-6px;background:var(--accent-soft)}
+.lcard.drop-hot{outline-offset:-2px}

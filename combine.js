@@ -165,13 +165,17 @@ function importDialog({title,existing,file,onDone,okLabel}){
   await onDone({name:nameIn?nameIn.value.trim():existing.name,...data});
  },okLabel,{wide:true});
  m.ok().disabled=true;analyze();
+ const sheetEl=$('modal').querySelector('.sheet'),hasF=e=>!!e.dataTransfer&&[...e.dataTransfer.types].includes('Files');
+ sheetEl.addEventListener('dragover',e=>{if(hasF(e)){e.preventDefault();sheetEl.classList.add('over');}});
+ sheetEl.addEventListener('dragleave',e=>{if(!sheetEl.contains(e.relatedTarget))sheetEl.classList.remove('over');});
+ sheetEl.addEventListener('drop',e=>{sheetEl.classList.remove('over');if(hasF(e)){e.preventDefault();e.stopPropagation();const f=e.dataTransfer.files[0];if(f)readIt(f);}});
  if(file)readIt(file);
 }
 function addDialog(file){
  importDialog({title:t('mAddTitle'),file,onDone:async d=>{const v=await addList(d);changed();toast(t('savedList',v.name));}});
 }
-function updateDialog(l){
- importDialog({title:t('updateTitle',l.name),existing:l,okLabel:t('updateOk'),onDone:async d=>{
+function updateDialog(l,file){
+ importDialog({title:t('updateTitle',l.name),existing:l,file,okLabel:t('updateOk'),onDone:async d=>{
   const old=l.rows.length;l.headers=d.headers;l.rows=d.rows;l.keyCols=d.keyCols;l.template=d.template;l.date=d.date;await putList(l);
   C.flash=l.id;setTimeout(()=>{C.flash=null;},1400);changed();toast(t('updatedMsg',l.name,fmt(d.rows.length),fmt(old)));
  }});
@@ -321,11 +325,26 @@ for(const b of document.querySelectorAll('#cModeSeg button'))b.onclick=()=>{C.mo
 document.addEventListener('click',()=>{if(C.pop!==null){C.pop=null;App.render();}});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&C.pop!==null&&App.$('modal').hidden){C.pop=null;App.render();}});
 
-/* dropping a file on the saved lists opens the add dialog with it */
-{const lib=()=>$('libCard'),hasFiles=e=>!!e.dataTransfer&&[...e.dataTransfer.types].includes('Files'),inView=()=>App.getView()==='combine';
- document.addEventListener('dragover',e=>{if(inView()&&hasFiles(e)){e.preventDefault();lib().classList.toggle('drop-hot',!!e.target.closest('#libCard'));}});
- document.addEventListener('dragleave',e=>{if(!e.relatedTarget)lib().classList.remove('drop-hot');});
- document.addEventListener('drop',e=>{if(!inView()||!hasFiles(e))return;e.preventDefault();e.stopPropagation();lib().classList.remove('drop-hot');const f=e.dataTransfer.files[0];if(f&&e.target.closest('#libCard'))addDialog(f);},true);}
+/* Dropping a file: on a saved list updates that list, elsewhere on the Saved lists panel adds a new list, and inside an open add/update dialog loads it there. */
+{const hasFiles=e=>!!e.dataTransfer&&[...e.dataTransfer.types].includes('Files'),inView=()=>App.getView()==='combine',lib=()=>$('libCard');
+ const clear=()=>{lib().classList.remove('drop-hot');for(const c of document.querySelectorAll('.lcard.drop-hot'))c.classList.remove('drop-hot');};
+ const cardAt=e=>e.target.closest&&e.target.closest('.lcard');
+ document.addEventListener('dragover',e=>{
+  if(!inView()||!hasFiles(e))return;
+  e.preventDefault();
+  if(!$('modal').hidden)return;
+  clear();const c=cardAt(e);if(c)c.classList.add('drop-hot');else if(e.target.closest('#libCard'))lib().classList.add('drop-hot');
+ });
+ document.addEventListener('dragleave',e=>{if(!e.relatedTarget)clear();});
+ document.addEventListener('drop',e=>{
+  if(!inView()||!hasFiles(e))return;
+  if(!$('modal').hidden){if(!e.target.closest('.sheet'))e.preventDefault();return;}   /* the open dialog handles its own drops */
+  e.preventDefault();e.stopPropagation();
+  const f=e.dataTransfer.files[0],c=cardAt(e);clear();
+  if(!f)return;
+  if(c){const l=byId(c.dataset.id);if(l)updateDialog(l,f);}
+  else if(e.target.closest('#libCard'))addDialog(f);
+ },true);}
 
 /* ---------- drag and drop (pointer based, so mouse, touch and pen all work) ---------- */
 const DND={pending:null,drag:null,timer:null};
