@@ -17,7 +17,7 @@ The page is one workspace: your lists and match settings on the left, the answer
 
 - **Add lists.** Drop Excel, CSV or TSV files onto a list, press Import file, or paste spreadsheet cells (Ctrl+V works anywhere on the page and fills the first empty list). Try sample lists shows the tool with example data.
 - **Detection.** The header row and match column are found automatically. Columns are ranked by how many *distinct* phone numbers they hold, so a column repeating one number is never chosen; when both lists are loaded, the column pair sharing the most keys wins. Choosing a column by hand turns detection off for that list. A warning appears when the chosen column has very few distinct values, and when the lists share no keys.
-- **Match as** phone (Israeli normalization), text (ignore case) or exact text.
+- **Match as** phone (Israeli normalization), Israeli ID (ת״ז: leading zeros restored, 5–9 digits, wrong check digits still match but are counted), text (ignore case) or exact text. Pick the column to match on in each list's card ("Match on").
 - **Choose what to see** by clicking areas of the Venn diagram (only in A, in both, only in B) or a quick pick. The selection is the operation: all three = merge, both = matching rows, A + B = unmatched rows, A only = A without B, B only = B without A, A + both = all of A, both + B = all of B.
 - **Inspect a row.** Click a row to see the A and B values side by side and pick which value goes in the result for each differing cell.
 - **Review near matches.** Phone numbers one digit apart are listed as possible matches. Accepting one links the two rows; ignoring hides it. Nothing is matched automatically.

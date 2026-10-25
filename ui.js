@@ -109,9 +109,11 @@ function listCard(id){
  const sheetSel=s.book&&h('label',{class:'field'},h('span',{class:'cap',text:t('sheet')}),h('select',{id:'sheet-'+id,onchange:e=>{s.sheet=e.target.value;readSheet(id);}},s.book.SheetNames.map(n=>h('option',{value:n,selected:n===s.sheet,text:n}))));
  const chips=h('div',{class:'chips'});
  if(s.auto&&s.data.length)chips.append(h('span',{class:'chip ok',text:t('auto')}));
- const multi=s.data.filter(r=>E.rowKeys(r[s.key],V.mode).length>1).length;
+ const numeric=V.mode==='phone'||V.mode==='id',multi=s.data.filter(r=>E.rowKeys(r[s.key],V.mode).length>1).length;
+ const badCheck=V.mode==='id'?s.data.filter(r=>E.rowKeys(r[s.key],'id').some(k=>!E.idCheck(k))).length:0;
  if(s.invalid.length)chips.append(h('span',{class:'chip warn',text:t('excluded',s.invalid.length)}));
- if(multi&&V.mode==='phone')chips.append(h('span',{class:'chip',text:t('multi',multi)}));
+ if(multi&&numeric)chips.append(h('span',{class:'chip',text:t(V.mode==='id'?'multiId':'multi',multi)}));
+ if(badCheck)chips.append(h('span',{class:'chip warn',title:t('badCheckHelp'),text:t('badCheck',badCheck)}));
  if(s.duplicates)chips.append(h('span',{class:'chip warn',text:t('dups',s.duplicates)}));
  chips.append(h('span',{class:'chip',text:t('uniqueKeys',s.index.size)}));
  const valid=s.data.length-s.invalid.length;
@@ -129,9 +131,9 @@ function listCard(id){
 function matchCard(){
  const c=$('matchCard');c.replaceChildren();
  c.hidden=!bothLoaded();if(c.hidden)return;
- const help={phone:'mPhoneHelp',text:'mTextHelp',exact:'mExactHelp'}[V.mode];
+ const help={phone:'mPhoneHelp',id:'mIdHelp',text:'mTextHelp',exact:'mExactHelp'}[V.mode];
  c.append(h('h2',{class:'card-title',text:t('howMatch')}),
-  h('div',{class:'seg',role:'group','aria-label':t('howMatch')},[['phone','mPhone'],['text','mText'],['exact','mExact']].map(([m,k])=>h('button',{type:'button','aria-pressed':String(V.mode===m),onclick:()=>{V.mode=m;V.links=[];V.ignored=new Set();V.over={};autoKeys();refresh();},text:t(k)}))),
+  h('div',{class:'seg',role:'group','aria-label':t('howMatch')},[['phone','mPhone'],['id','mId'],['text','mText'],['exact','mExact']].map(([m,k])=>h('button',{type:'button','aria-pressed':String(V.mode===m),onclick:()=>{V.mode=m;V.links=[];V.ignored=new Set();V.over={};autoKeys();refresh();},text:t(k)}))),
   h('p',{class:'help',text:t(help)}));
  if(!stats.both)c.append(h('div',{class:'notice',text:t('noShared')}));
  if(stats.near.length){
@@ -181,7 +183,7 @@ function grid(){
  for(const i of shown){
   const r=result.rows[i],vals=d.rows[i];
   const tr=h('tr',{class:'row'+(V.open===r.id?' sel':''),'data-s':r.source==='A+B'?'AB':r.source,'data-id':r.id,tabindex:'0',onclick:()=>openRow(r.id),onkeydown:e=>{if(e.key==='Enter')openRow(r.id);}},h('td',{class:'src'},h('span',{class:'badge',text:r.source})));
-  vals.forEach((v,c)=>{const isKey=c===d.k,diff=r.conf.has(c),txt=String(v);tr.append(h('td',{class:(isKey&&V.mode==='phone'?'k ':'')+(diff?'diff ':'')+(txt.trim()?'':'empty'),dir:isKey&&V.mode==='phone'?'ltr':'auto',title:diff?'A: '+r.va[c]+'  |  B: '+r.vb[c]:txt,text:txt.trim()?txt:'—'}));});
+  vals.forEach((v,c)=>{const isKey=c===d.k,diff=r.conf.has(c),txt=String(v);tr.append(h('td',{class:(isKey&&(V.mode==='phone'||V.mode==='id')?'k ':'')+(diff?'diff ':'')+(txt.trim()?'':'empty'),dir:isKey&&(V.mode==='phone'||V.mode==='id')?'ltr':'auto',title:diff?'A: '+r.va[c]+'  |  B: '+r.vb[c]:txt,text:txt.trim()?txt:'—'}));});
   body.append(tr);
  }
  tbl.append(head,body);

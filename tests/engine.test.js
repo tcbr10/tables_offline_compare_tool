@@ -87,3 +87,29 @@ test('text mode ignores case and invisible characters',()=>{
   const stats=E.analyze(a,b,{mode:'text',dups:'first'});
   assert.equal(stats.both,2);
 });
+
+test('Israeli IDs: leading zeros, separators, surrounding text',()=>{
+  for(const v of ['012345678','12345678','012-345-678','ת.ז. 12345678','=\"012345678\"'])assert.deepEqual(E.ids(v),['012345678'],v);
+  assert.deepEqual(E.ids('111111118 / 22222'),['111111118','000022222']);
+  assert.deepEqual(E.ids('111111118 222222222'),['111111118','222222222']);
+  for(const v of ['','0526070482','12/03/2024','abc','1234'])assert.deepEqual(E.ids(v),[],v);
+});
+test('Israeli ID check digit',()=>{
+  assert.equal(E.idCheck('000000018'),true);
+  assert.equal(E.idCheck('123456782'),true);
+  assert.equal(E.idCheck('123456789'),false);
+});
+test('ID mode matches across formats and picks the ID column',()=>{
+  const a=table([['Name','ID','Phone'],['x','12345678','0526070482'],['y','000000018','0541112222'],['z','333333334','0549998888']]);
+  const b=table([['ת.ז.','שם'],['012345678','x'],['0000018','y'],['999999999','w']]);
+  E.autoKeys({A:a,B:b},'id');
+  assert.equal(a.key,1);assert.equal(b.key,0);
+  const stats=E.analyze(a,b,{mode:'id',dups:'first'});
+  assert.equal(stats.both,2);assert.equal(stats.aOnly,1);assert.equal(stats.bOnly,1);
+});
+test('ID near matches are offered and can be linked',()=>{
+  const a=table([['ID'],['123456782']]),b=table([['ID'],['123456783']]);
+  const stats=E.analyze(a,b,{mode:'id',dups:'first'});
+  assert.deepEqual(stats.near,[['123456782','123456783']]);
+  assert.equal(E.analyze(a,b,{mode:'id',dups:'first',links:stats.near}).both,1);
+});
